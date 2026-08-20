@@ -45,7 +45,7 @@ export function DayProgressModal({ date, stats, history, onClose }: DayProgressM
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           title: 'إنجازي اليومي',
-          text: 'شاهد إنجازي في الإنجاز المنيري!',
+          text: 'إنجازي المُنيري',
           files: [file]
         });
       } else {
