@@ -1,0 +1,6 @@
+{
+  "name": "Al-Muneer Tracker",
+  "description": "An Arabic app for tracking progress in reading Al-Muneer book, with local storage and built-in activity punishments.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
