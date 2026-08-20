@@ -19,7 +19,7 @@ export function getDayNameArabic(dateStr: string): string {
 
 export function getShortDate(dateStr: string): string {
   const d = new Date(dateStr);
-  return `${d.getDate()}/${d.getMonth() + 1}`;
+  return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
 }
 
 export function processMissedDays(currentState: AppState) {

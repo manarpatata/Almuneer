@@ -72,19 +72,19 @@ export function DayProgressModal({ date, stats, history, onClose }: DayProgressM
   if (date) {
     const hash = date.charCodeAt(date.length - 1) % 4;
     if (expelled) {
-      message = "طرد تأديبي من المجموعة";
+      message = "طرد تأديبي من المجموعة 🚪";
       msgColor = "text-slate-800";
     } else if (punished) {
-      message = "معاقبة";
+      message = "معاقبة 😔";
       msgColor = "text-rose-600";
     } else if (completed >= 20) {
-      message = ["الأفضل في مجرة درب الشمبعانة", "ملكة الكون", "أحسن وحدة في الحياتي", "أشطر شطور"][hash];
+      message = ["الأفضل في مجرة درب الشمبعانة 🌌", "ملكة الكون 👑", "أحسن وحدة في الحياتي 💖", "أشطر شطور 🌟"][hash];
       msgColor = "text-emerald-600";
     } else if (completed >= 10) {
-      message = ["رائعة", "ممتازة", "أحسنت", "فنانة"][hash];
+      message = ["رائعة ✨", "ممتازة 👏", "أحسنت 👍", "فنانة 🎨"][hash];
       msgColor = "text-emerald-600";
     } else {
-      message = "تحت التهديد";
+      message = "تحت التهديد ⚠️";
       msgColor = "text-amber-500";
     }
   }
@@ -114,19 +114,20 @@ export function DayProgressModal({ date, stats, history, onClose }: DayProgressM
             initial={{ y: 20, opacity: 0, scale: 0.95 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
-            className="bg-white rounded-[2rem] shadow-2xl max-w-sm w-full overflow-hidden"
+            className="bg-white rounded-[2rem] shadow-2xl max-w-sm w-full overflow-hidden flex flex-col max-h-[95vh]"
             onClick={e => e.stopPropagation()}
             dir="rtl"
           >
-            <div ref={cardRef} className="p-8 pb-10 bg-gradient-to-b from-white to-[#F8FAFC] relative flex flex-col border-b border-slate-100">
-              
-              <div className="text-center mb-6">
-                <h3 className="text-2xl font-bold text-slate-800 mb-4">{getDayNameArabic(date)}</h3>
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-[3.5rem] font-black text-emerald-600 font-mono tracking-tighter leading-none" dir="ltr">
-                    {completed}
-                    <span className="text-3xl text-emerald-200">/28</span>
-                  </span>
+            <div className="overflow-y-auto flex-1 w-full">
+              <div ref={cardRef} className="p-6 sm:p-8 pb-6 sm:pb-10 bg-gradient-to-b from-white to-[#F8FAFC] relative flex flex-col border-b border-slate-100">
+                
+                <div className="text-center mb-4 sm:mb-6">
+                  <h3 className="text-xl sm:text-2xl font-bold text-slate-800 mb-3 sm:mb-4">{getDayNameArabic(date)}</h3>
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="text-5xl sm:text-[3.5rem] font-black text-emerald-600 font-mono tracking-tighter leading-none" dir="ltr">
+                      {completed}
+                      <span className="text-2xl sm:text-3xl text-emerald-200">/28</span>
+                    </span>
                   {expelled ? (
                     <span className="text-4xl" title="طرد تأديبي">🔪</span>
                   ) : punished || completed < 10 ? (
@@ -136,7 +137,7 @@ export function DayProgressModal({ date, stats, history, onClose }: DayProgressM
                 <p className="text-slate-400 font-bold text-sm mt-2 uppercase tracking-wide">درس مكتمل</p>
               </div>
 
-              <div className="w-full h-40 mt-2 mb-6" dir="ltr">
+              <div className="w-full h-32 sm:h-40 mt-2 mb-4 sm:mb-6" dir="ltr">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 20 }}>
                     <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} dy={10} />
@@ -163,20 +164,21 @@ export function DayProgressModal({ date, stats, history, onClose }: DayProgressM
                 <p className="text-slate-400 font-medium text-sm">{getShortDate(date)}</p>
               </div>
             </div>
+            </div>
             
-            <div className="flex gap-3 p-4 bg-slate-50">
+            <div className="flex gap-3 p-3 sm:p-4 bg-slate-50 shrink-0">
               <button 
                 onClick={handleShare}
-                className="flex-1 flex items-center justify-center gap-2 bg-slate-800 text-white py-4 rounded-xl font-bold hover:bg-slate-700 transition-colors"
+                className="flex-1 flex items-center justify-center gap-2 bg-slate-800 text-white py-3 sm:py-4 rounded-xl font-bold hover:bg-slate-700 transition-colors"
               >
-                <Share2 className="w-5 h-5" />
-                <span>مشاركة الإنجاز</span>
+                <Share2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="text-sm sm:text-base">مشاركة الإنجاز</span>
               </button>
               <button 
                 onClick={onClose}
-                className="p-4 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-100 transition-colors"
+                className="p-3 sm:p-4 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-100 transition-colors"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             </div>
           </motion.div>
