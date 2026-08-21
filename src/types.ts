@@ -9,5 +9,7 @@ export interface AppState {
   khatmatCount: number;
   history: Record<string, DailyStats>;
   lastLoginDate: string;
+  startDate?: string;
   pendingPunishment?: boolean;
+  dailyGoal?: number;
 }

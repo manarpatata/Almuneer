@@ -48,13 +48,19 @@ export function processMissedDays(currentState: AppState) {
     
     // Check 2-day punishment
     const prevDate = addDays(currDate, -1);
-    const prevStats = newState.history[prevDate] || { lessonsCompleted: 0, punishedDaily: false, punished2Days: false };
-    const total2Days = dayStats.lessonsCompleted + prevStats.lessonsCompleted;
+    const startDate = newState.startDate || newState.lastLoginDate;
     
-    if (total2Days < 20 && !dayStats.punished2Days) {
-      dayStats.punished2Days = true;
-      activePunishments.heavyPunishments.push(currDate);
-      newState.pendingPunishment = true;
+    // Only check 2-day punishment if the previous day is on or after the start date
+    if (prevDate >= startDate) {
+      const prevStats = newState.history[prevDate] || { lessonsCompleted: 0, punishedDaily: false, punished2Days: false };
+      const total2Days = dayStats.lessonsCompleted + prevStats.lessonsCompleted;
+      const twoDayGoal = (newState.dailyGoal || 10) * 2;
+      
+      if (total2Days < twoDayGoal && !dayStats.punished2Days) {
+        dayStats.punished2Days = true;
+        activePunishments.heavyPunishments.push(currDate);
+        newState.pendingPunishment = true;
+      }
     }
     
     newState.history[currDate] = dayStats;

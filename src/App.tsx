@@ -10,7 +10,7 @@ import { getTodayDateString, processMissedDays, addDays } from './utils';
 import { LessonsList } from './components/LessonsList';
 import { CalendarTracker } from './components/CalendarTracker';
 import { WaterGunOverlay } from './components/WaterGunOverlay';
-import { BookOpen } from 'lucide-react';
+import { BookOpen, Settings, X, AlertTriangle, RotateCcw } from 'lucide-react';
 
 export default function App() {
   const [state, setState] = useState<AppState>(() => {
@@ -19,6 +19,7 @@ export default function App() {
       try {
         const parsed = JSON.parse(saved);
         const { newState } = processMissedDays(parsed);
+        if (newState.dailyGoal === undefined) newState.dailyGoal = 10;
         return newState;
       } catch (e) {
         console.error("Failed to parse state", e);
@@ -26,25 +27,23 @@ export default function App() {
     }
     
     const today = getTodayDateString();
-    const dMinus = (days: number) => addDays(today, -days);
     
     return {
-      completedLessons: LESSONS.slice(0, 25),
-      khatmatCount: 3,
+      completedLessons: [],
+      khatmatCount: 0,
       history: {
-        [dMinus(6)]: { lessonsCompleted: 22, punishedDaily: false, punished2Days: false },
-        [dMinus(5)]: { lessonsCompleted: 14, punishedDaily: false, punished2Days: false },
-        [dMinus(4)]: { lessonsCompleted: 8, punishedDaily: false, punished2Days: false },
-        [dMinus(3)]: { lessonsCompleted: 0, punishedDaily: true, punished2Days: false },
-        [dMinus(2)]: { lessonsCompleted: 0, punishedDaily: false, punished2Days: true, expelled: true },
-        [dMinus(1)]: { lessonsCompleted: 15, punishedDaily: false, punished2Days: false },
-        [today]: { lessonsCompleted: 25, punishedDaily: false, punished2Days: false }
+        [today]: { lessonsCompleted: 0, punishedDaily: false, punished2Days: false }
       },
       lastLoginDate: today,
+      startDate: today,
+      dailyGoal: 10,
     };
   });
 
   const [showWaterGun, setShowWaterGun] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [tempGoal, setTempGoal] = useState(state.dailyGoal || 10);
   
   const [timeToMidnight, setTimeToMidnight] = useState("");
 
@@ -138,6 +137,8 @@ export default function App() {
   const todayCompleted = state.history[getTodayDateString()]?.lessonsCompleted || 0;
   const yesterdayDate = addDays(getTodayDateString(), -1);
   const yesterdayCompleted = state.history[yesterdayDate]?.lessonsCompleted || 0;
+  
+  const isYesterdayBeforeStart = yesterdayDate < (state.startDate || state.lastLoginDate);
 
   const handlePunishmentAction = (fulfilled: boolean) => {
     if (fulfilled) {
@@ -162,6 +163,7 @@ export default function App() {
     }
   };
 
+  const dailyGoal = state.dailyGoal || 10;
   let boxClasses = "rounded-[2rem] p-6 text-white flex flex-col justify-center items-center gap-4 relative overflow-hidden shrink-0 shadow-lg transition-all duration-300 ";
   let boxContent;
 
@@ -174,7 +176,7 @@ export default function App() {
       <div className="relative z-10 flex flex-col items-center w-full gap-4">
         <h4 className="text-xl font-bold">⚠️ عقاب التقصير</h4>
         <p className="text-sm text-center font-medium leading-relaxed">
-          لم تنجز 20 درساً في اليومين الماضيين. عليك تنفيذ العقاب.
+          لم تنجز {dailyGoal * 2} درساً في اليومين الماضيين. عليك تنفيذ العقاب.
         </p>
         <div className="flex gap-3 w-full mt-2">
           <button onClick={() => handlePunishmentAction(true)} className="flex-1 bg-white text-rose-600 py-3 rounded-xl font-bold text-sm shadow-sm hover:bg-rose-50 transition-colors">أتممت العقاب</button>
@@ -182,16 +184,40 @@ export default function App() {
         </div>
       </div>
     );
-  } else if (todayCompleted >= 10) {
+  } else if (todayCompleted >= dailyGoal) {
     boxClasses += "bg-emerald-500";
     boxContent = <h4 className="text-2xl font-bold z-10">وصلت إلى بر الأمان 🌿</h4>;
-  } else if (yesterdayCompleted < 10) {
+  } else if (!isYesterdayBeforeStart && yesterdayCompleted < dailyGoal) {
     boxClasses += "bg-rose-500";
     boxContent = <h4 className="text-2xl font-bold z-10">مهددة بالعقاب 🔫</h4>;
   } else {
     boxClasses += "bg-gradient-to-br from-blue-500 to-blue-600";
     boxContent = <h4 className="text-xl font-bold z-10">بانتظار إنجازك اليوم 💧</h4>;
   }
+
+  const handleReset = () => {
+    if (confirm("هل أنت متأكد من تصفير جميع الإنجازات والبدء من جديد؟ لن يمكنك التراجع عن هذا الإجراء.")) {
+      const today = getTodayDateString();
+      setState({
+        completedLessons: [],
+        khatmatCount: 0,
+        history: {
+          [today]: { lessonsCompleted: 0, punishedDaily: false, punished2Days: false }
+        },
+        lastLoginDate: today,
+        startDate: today,
+        dailyGoal: state.dailyGoal || 10,
+        pendingPunishment: false
+      });
+      setShowSettings(false);
+    }
+  };
+
+  const handleSaveGoal = () => {
+    if (tempGoal < 1 || tempGoal > 28) return;
+    setState(prev => ({ ...prev, dailyGoal: tempGoal }));
+    setShowSettings(false);
+  };
 
   return (
     <div className="flex flex-col h-screen w-full bg-[#F8FAFC] font-sans text-slate-800" dir="rtl">
@@ -200,6 +226,15 @@ export default function App() {
           <div className="w-12 h-12 bg-[#059669] rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-200">
             <BookOpen className="w-6 h-6 text-white" />
           </div>
+          <button 
+            onClick={() => {
+              setTempGoal(state.dailyGoal || 10);
+              setShowSettings(true);
+            }} 
+            className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors"
+          >
+            <Settings className="w-5 h-5" />
+          </button>
         </div>
         
         <div className="flex gap-2 md:gap-6 items-center">
@@ -246,6 +281,66 @@ export default function App() {
         isVisible={showWaterGun} 
         onClose={() => setShowWaterGun(false)} 
       />
+
+      {showSettings && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden" dir="rtl">
+            <div className="flex justify-between items-center p-6 border-b border-slate-100">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <Settings className="w-5 h-5 text-slate-400" />
+                الإعدادات
+              </h2>
+              <button 
+                onClick={() => setShowSettings(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 flex flex-col gap-8">
+              <div className="flex flex-col gap-3">
+                <label className="font-bold text-slate-700">الحد الأدنى للدروس اليومية</label>
+                <p className="text-xs text-slate-500">عدد الدروس المطلوبة يومياً لتجنب العقاب</p>
+                <div className="flex items-center gap-4 mt-2">
+                  <input 
+                    type="range" 
+                    min="1" 
+                    max="28" 
+                    value={tempGoal} 
+                    onChange={(e) => setTempGoal(Number(e.target.value))}
+                    className="flex-1 accent-emerald-500"
+                  />
+                  <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 font-bold text-lg border border-emerald-100">
+                    {tempGoal}
+                  </div>
+                </div>
+                <button 
+                  onClick={handleSaveGoal}
+                  className="mt-4 w-full bg-[#059669] text-white py-3 rounded-xl font-bold text-sm shadow-md hover:bg-emerald-700 transition-colors"
+                >
+                  حفظ التغييرات
+                </button>
+              </div>
+
+              <div className="border-t border-slate-100 pt-8 flex flex-col gap-3">
+                <h3 className="font-bold text-rose-600 flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5" />
+                  منطقة الخطر
+                </h3>
+                <p className="text-xs text-slate-500">هذا الإجراء سيقوم بتصفير جميع إنجازاتك والبدء من جديد تماماً.</p>
+                <button 
+                  onClick={handleReset}
+                  className="mt-2 w-full flex items-center justify-center gap-2 bg-rose-50 text-rose-600 py-3 rounded-xl font-bold text-sm shadow-sm hover:bg-rose-100 transition-colors"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  تصفير الإنجازات
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
