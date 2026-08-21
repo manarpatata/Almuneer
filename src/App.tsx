@@ -10,7 +10,7 @@ import { getTodayDateString, processMissedDays, addDays } from './utils';
 import { LessonsList } from './components/LessonsList';
 import { CalendarTracker } from './components/CalendarTracker';
 import { WaterGunOverlay } from './components/WaterGunOverlay';
-import { BookOpen, Settings, X, AlertTriangle, RotateCcw } from 'lucide-react';
+import { BookOpen, Settings, X, AlertTriangle, RotateCcw, CheckCircle } from 'lucide-react';
 
 export default function App() {
   const [state, setState] = useState<AppState>(() => {
@@ -44,6 +44,7 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [tempGoal, setTempGoal] = useState(state.dailyGoal || 10);
+  const [toastMessage, setToastMessage] = useState("");
   
   const [timeToMidnight, setTimeToMidnight] = useState("");
 
@@ -196,21 +197,26 @@ export default function App() {
   }
 
   const handleReset = () => {
-    if (confirm("هل أنت متأكد من تصفير جميع الإنجازات والبدء من جديد؟ لن يمكنك التراجع عن هذا الإجراء.")) {
-      const today = getTodayDateString();
-      setState({
-        completedLessons: [],
-        khatmatCount: 0,
-        history: {
-          [today]: { lessonsCompleted: 0, punishedDaily: false, punished2Days: false }
-        },
-        lastLoginDate: today,
-        startDate: today,
-        dailyGoal: state.dailyGoal || 10,
-        pendingPunishment: false
-      });
-      setShowSettings(false);
-    }
+    setConfirmReset(true);
+  };
+
+  const executeReset = () => {
+    const today = getTodayDateString();
+    setState({
+      completedLessons: [],
+      khatmatCount: 0,
+      history: {
+        [today]: { lessonsCompleted: 0, punishedDaily: false, punished2Days: false }
+      },
+      lastLoginDate: today,
+      startDate: today,
+      dailyGoal: state.dailyGoal || 10,
+      pendingPunishment: false
+    });
+    setConfirmReset(false);
+    setShowSettings(false);
+    setToastMessage("تم تصفير الإنجازات بنجاح");
+    setTimeout(() => setToastMessage(""), 3000);
   };
 
   const handleSaveGoal = () => {
@@ -339,6 +345,23 @@ export default function App() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {confirmReset && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white p-5 rounded-2xl shadow-2xl z-[100] w-[90%] max-w-sm flex flex-col gap-4">
+          <p className="text-center font-bold text-sm">هل أنت متأكد من التصفير والبدء من جديد؟ لن يمكنك التراجع.</p>
+          <div className="flex gap-3 w-full">
+            <button onClick={executeReset} className="flex-1 bg-rose-500 hover:bg-rose-600 py-2.5 rounded-xl text-sm font-bold transition-colors">نعم، متأكد</button>
+            <button onClick={() => setConfirmReset(false)} className="flex-1 bg-slate-700 hover:bg-slate-600 py-2.5 rounded-xl text-sm font-bold transition-colors">إلغاء</button>
+          </div>
+        </div>
+      )}
+
+      {toastMessage && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 bg-emerald-500 text-white px-6 py-3 rounded-full shadow-lg z-[100] flex items-center gap-2">
+          <CheckCircle className="w-5 h-5" />
+          <span className="font-bold text-sm">{toastMessage}</span>
         </div>
       )}
     </div>
