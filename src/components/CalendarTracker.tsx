@@ -7,9 +7,10 @@ import { DayProgressModal } from './DayProgressModal';
 
 interface CalendarTrackerProps {
   history: Record<string, DailyStats>;
+  pendingPunishment?: boolean;
 }
 
-export function CalendarTracker({ history }: CalendarTrackerProps) {
+export function CalendarTracker({ history, pendingPunishment }: CalendarTrackerProps) {
   const today = getTodayDateString();
   const past7Days = Array.from({ length: 7 }, (_, i) => addDays(today, -6 + i));
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -96,6 +97,7 @@ export function CalendarTracker({ history }: CalendarTrackerProps) {
         date={selectedDate} 
         stats={selectedDate ? history[selectedDate] : null} 
         history={history}
+        pendingPunishment={pendingPunishment}
         onClose={() => setSelectedDate(null)} 
       />
     </>

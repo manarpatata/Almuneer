@@ -3,6 +3,7 @@ export interface DailyStats {
   punishedDaily: boolean;
   punished2Days: boolean;
   expelled?: boolean;
+  punishmentResolved?: boolean;
 }
 
 export interface AppState {

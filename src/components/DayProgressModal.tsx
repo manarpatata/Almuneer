@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { DailyStats } from '../types';
 import { getDayNameArabic, getShortDate, addDays } from '../utils';
@@ -24,10 +24,63 @@ interface DayProgressModalProps {
   date: string | null;
   stats: DailyStats | null;
   history: Record<string, DailyStats>;
+  pendingPunishment?: boolean;
   onClose: () => void;
 }
 
-export function DayProgressModal({ date, stats, history, onClose }: DayProgressModalProps) {
+const THREATENED_PHRASES = [
+  "مهددة بالانقراض🔫",
+  "مهددة بالتفتيق🔫",
+  "مهددة بالعقاب🔫",
+  "تحت التهديد🔫",
+  "تحتاج جهد🔫",
+  "قريبة من الخطر🔫"
+];
+const PUNISHED_PHRASES = [
+  "تعاقب🔫💥",
+  "تُحال إلى لجنة التفتيق والعقاب🔫💥",
+  "يتم تفتيقها بالعقاب🔫💥",
+  "يفعّل ضدها بند العقوبة🔫💥",
+  "ينفذ فيها العقاب🔫💥",
+  "تخضع للعقاب🔫💥",
+  "محكوم عليها بالعقاب🔫💥"
+];
+const GOOD_PHRASES = [
+  "فنانة 🎨",
+  "فنتاستك 🌟",
+  "اميزنج😍",
+  "سويت 🍬",
+  "بطلة 🦸‍♀️",
+  "تحفة 🖼️"
+];
+const EXCELLENT_PHRASES = [
+  ...GOOD_PHRASES,
+  "أذكى مخلوقة على وجه الأرض 🌍",
+  "امبراطورة الاجتهاد بلا منافس 🏰",
+  "أعظم من الأساطير نفسها 🐉"
+];
+const PUNISHMENT_COMPLETED_PHRASES = [
+  "انتهت العقوبة رسميًا ✅",
+  "خرجت بشرف من العقوبة 🎖️",
+  "تم قضاء العقاب بالكامل 🔓",
+  "عقوبتها انتهت رسميًا 📁",
+  "فكّ عنها قيد العقوبة 🔗"
+];
+const PUNISHMENT_PENDING_PHRASES = [
+  "معاقبة ولا زال قيد التنفيذ ⏳",
+  "معاقبة والعقوبة سارية ⏳",
+  "ما زالت تحت العقاب ⏳",
+  "محكومة بعقاب لم تنهه ⏳",
+  "تحت وطأة العقاب ⏳"
+];
+const PUNISHMENT_FAILED_PHRASES = [
+  "إزالة قسرية من المجموعة 🔪🚫",
+  "طرد تأديبي من المجموعة 🔪🚪",
+  "تمت إزالتك من المجموعة 🔪📤",
+  "تمت تصفيتك من الجروب 🔪🧹"
+];
+
+export function DayProgressModal({ date, stats, history, pendingPunishment, onClose }: DayProgressModalProps) {
   const cardRef = useRef<HTMLDivElement>(null);
 
   const handleShare = async () => {
@@ -61,31 +114,94 @@ export function DayProgressModal({ date, stats, history, onClose }: DayProgressM
     }
   };
 
-  const hasLessons = stats && stats.lessonsCompleted > 0;
   const punished = stats?.punishedDaily || stats?.punished2Days;
   const expelled = stats?.expelled;
   const completed = stats?.lessonsCompleted || 0;
 
+  const punishmentResolutionData = useMemo(() => {
+    if (!date) return null;
+    let lastPunishedDate = null;
+    let curr = date;
+    for (let i = 0; i < 30; i++) {
+      if (history[curr]?.punished2Days) {
+        lastPunishedDate = curr;
+        break;
+      }
+      curr = addDays(curr, -1);
+    }
+
+    if (lastPunishedDate) {
+      let resolvedOnDate = null;
+      let failedOnDate = null;
+      let checkDate = addDays(lastPunishedDate, 1);
+      
+      while (checkDate <= date) {
+        if (history[checkDate]?.expelled) {
+          failedOnDate = checkDate;
+          break;
+        }
+        if (history[checkDate]?.punishmentResolved) {
+          resolvedOnDate = checkDate;
+          break;
+        }
+        checkDate = addDays(checkDate, 1);
+      }
+
+      if (failedOnDate && failedOnDate === date) {
+        return 'failed';
+      } else if (resolvedOnDate && resolvedOnDate === date) {
+        return 'completed';
+      } else if (!failedOnDate && !resolvedOnDate) {
+        if (date > lastPunishedDate) {
+          return 'pending';
+        }
+      }
+    }
+    return null;
+  }, [date, history]);
+
   let message = "";
   let msgColor = "";
+  let statusBlock = null;
   
   if (date) {
-    const hash = date.charCodeAt(date.length - 1) % 4;
-    if (expelled) {
-      message = "طرد تأديبي من المجموعة 🚪";
+    const dateHash = date.split('-').reduce((acc, part) => acc + parseInt(part), 0);
+    
+    if (expelled && !punishmentResolutionData) {
+      message = "طرد تأديبي 🚪";
       msgColor = "text-slate-800";
     } else if (punished) {
-      message = "معاقبة 😔";
+      message = PUNISHED_PHRASES[dateHash % PUNISHED_PHRASES.length];
       msgColor = "text-rose-600";
     } else if (completed >= 20) {
-      message = ["الأفضل في مجرة درب الشمبعانة 🌌", "ملكة الكون 👑", "أحسن وحدة في الحياتي 💖", "أشطر شطور 🌟"][hash];
+      message = EXCELLENT_PHRASES[dateHash % EXCELLENT_PHRASES.length];
       msgColor = "text-emerald-600";
     } else if (completed >= 10) {
-      message = ["رائعة ✨", "ممتازة 👏", "أحسنت 👍", "فنانة 🎨"][hash];
+      message = GOOD_PHRASES[dateHash % GOOD_PHRASES.length];
       msgColor = "text-emerald-600";
     } else {
-      message = "تحت التهديد ⚠️";
+      message = THREATENED_PHRASES[dateHash % THREATENED_PHRASES.length];
       msgColor = "text-amber-500";
+    }
+
+    if (punishmentResolutionData === 'completed') {
+      statusBlock = (
+        <div className="mt-4 bg-rose-500 text-white rounded-xl p-3 font-bold text-sm shadow-sm">
+          {PUNISHMENT_COMPLETED_PHRASES[dateHash % PUNISHMENT_COMPLETED_PHRASES.length]}
+        </div>
+      );
+    } else if (punishmentResolutionData === 'pending') {
+      statusBlock = (
+        <div className="mt-4 bg-rose-500 text-white rounded-xl p-3 font-bold text-sm shadow-sm animate-pulse">
+          {PUNISHMENT_PENDING_PHRASES[dateHash % PUNISHMENT_PENDING_PHRASES.length]}
+        </div>
+      );
+    } else if (punishmentResolutionData === 'failed') {
+      statusBlock = (
+        <div className="mt-4 bg-rose-500 text-white rounded-xl p-3 font-bold text-sm shadow-sm">
+          {PUNISHMENT_FAILED_PHRASES[dateHash % PUNISHMENT_FAILED_PHRASES.length]}
+        </div>
+      );
     }
   }
 
@@ -154,11 +270,17 @@ export function DayProgressModal({ date, stats, history, onClose }: DayProgressM
                 </ResponsiveContainer>
               </div>
 
-              <div className="text-center mb-4">
+              <div className="text-center mb-2">
                 <h4 className={`text-xl font-bold font-sans ${msgColor}`}>
                   {message}
                 </h4>
               </div>
+
+              {statusBlock && (
+                <div className="text-center mb-4">
+                  {statusBlock}
+                </div>
+              )}
 
               <div className="text-center mt-auto pt-2">
                 <p className="text-slate-400 font-medium text-sm">{getShortDate(date)}</p>

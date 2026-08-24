@@ -209,7 +209,13 @@ export default function App() {
       setState(prev => ({ 
         ...prev, 
         pendingPunishment: false,
-        history: fulfilled ? prev.history : {
+        history: fulfilled ? {
+          ...prev.history,
+          [today]: {
+            ...(prev.history[today] || { lessonsCompleted: 0, punishedDaily: false, punished2Days: false }),
+            punishmentResolved: true
+          }
+        } : {
           ...prev.history,
           [today]: {
             ...(prev.history[today] || { lessonsCompleted: 0, punishedDaily: false, punished2Days: false }),
@@ -341,7 +347,7 @@ export default function App() {
         </section>
         
         <aside className="flex-1 flex flex-col gap-6 pb-6 pr-1">
-          <CalendarTracker history={state.history} />
+          <CalendarTracker history={state.history} pendingPunishment={state.pendingPunishment} />
           
           <div className={boxClasses}>
             {boxContent}
