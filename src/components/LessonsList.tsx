@@ -42,7 +42,7 @@ export function LessonsList({ completedLessons, onToggle }: LessonsListProps) {
         />
       </div>
       
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 overflow-y-auto pr-2 pb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pr-2 pb-4">
         {sortedLessons.map((lesson) => {
           const isCompleted = completedLessons.includes(lesson);
           return (

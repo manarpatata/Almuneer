@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { LESSONS } from './data';
 import { AppState } from './types';
 import { getTodayDateString, processMissedDays, addDays } from './utils';
@@ -59,8 +59,8 @@ export default function App() {
         const parsed = JSON.parse(saved);
         
         // --- State Healing Logic ---
-        const expectedTotal = (parsed.khatmatCount || 0) * 28 + (parsed.completedLessons?.length || 0);
-        const actualTotal = Object.values(parsed.history || {}).reduce((sum: number, day: any) => sum + (day.lessonsCompleted || 0), 0);
+        const expectedTotal = Number(parsed.khatmatCount || 0) * 28 + Number(parsed.completedLessons?.length || 0);
+        const actualTotal = Number(Object.values(parsed.history || {}).reduce((sum: number, day: any) => sum + Number(day.lessonsCompleted || 0), 0));
         
         if (actualTotal > expectedTotal) {
           const diff = actualTotal - expectedTotal;
@@ -133,67 +133,144 @@ export default function App() {
     });
   };
 
-  const [expulsionMessage, setExpulsionMessage] = useState(false);
+  const [punishmentUIState, setPunishmentUIState] = useState<'idle' | 'resolving_done' | 'resolving_failed'>('idle');
+  const punishmentTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const PUNISHMENT_TITLES = [
+    "معاقبة من لجنة العقاب🔫💥",
+    "واقعة تحت بند العقوبة🔫💥",
+    "محكوم عليك بالعقاب🔫💥"
+  ];
+  const PUNISHMENT_FAILED = [
+    "إزالة قسرية من المجموعة 🔪🚫",
+    "طرد تأديبي من المجموعة 🔪🚪",
+    "تمت إزالتك من المجموعة 🔪📤",
+    "تمت تصفيتك من الجروب 🔪🧹"
+  ];
+  const PUNISHMENT_DONE = [
+    "انتهت العقوبة رسميًا ✅",
+    "خرجتِ بشرف من العقوبة 🎖️",
+    "تم قضاء العقاب بالكامل 🔓",
+    "عقوبتك انتهت رسميًا 📁",
+    "فكّ عنك قيد العقوبة 🔗"
+  ];
+  const THREATENED_TEXTS = [
+    "مهددة بالعقاب🔫",
+    "مهددة بالانقراض🔫",
+    "مهددة بالتفتيق🔫",
+    "تحت التهديد🔫",
+    "تحتاج جهد🔫",
+    "قريبة من الخطر🔫"
+  ];
+  const SAFE_TEXTS = [
+    "في بر الأمان ⚓",
+    "خرجتِ من العاصفة 🌤️",
+    "عادت المياه لمجاريها 💧",
+    "طلعتِ من تحت الأنقاض 🌟",
+    "كسرتِ حاجز الخطر 🚧",
+    "خرجتِ بلا خدوش 🛡️"
+  ];
+  const DEFAULT_TEXTS = [
+    "الوقت يمشي بسرعة ⏳",
+    "ليس وقت الاسترخاء👀",
+    "الاحتمالات مفتوحة 🎲",
+    "ما انحسمت لسه 🔄",
+    "على مفترق الطرق 🛣️",
+    "لم تستقر الأمور بعد 🌊"
+  ];
+
+  const dailyGoal = state.dailyGoal || 10;
 
   const todayCompleted = state.history[getTodayDateString()]?.lessonsCompleted || 0;
   const yesterdayDate = addDays(getTodayDateString(), -1);
   const yesterdayCompleted = state.history[yesterdayDate]?.lessonsCompleted || 0;
-  
   const isYesterdayBeforeStart = yesterdayDate < (state.startDate || state.lastLoginDate);
+  
+  let currentBoxType = 'default';
+  if (state.pendingPunishment) currentBoxType = 'punishment';
+  else if (todayCompleted >= dailyGoal) currentBoxType = 'safe';
+  else if (!isYesterdayBeforeStart && yesterdayCompleted < dailyGoal) currentBoxType = 'threatened';
+
+  const randomTexts = useMemo(() => ({
+    punishmentTitle: PUNISHMENT_TITLES[Math.floor(Math.random() * PUNISHMENT_TITLES.length)],
+    punishmentFailed: PUNISHMENT_FAILED[Math.floor(Math.random() * PUNISHMENT_FAILED.length)],
+    punishmentDone: PUNISHMENT_DONE[Math.floor(Math.random() * PUNISHMENT_DONE.length)],
+    threatened: THREATENED_TEXTS[Math.floor(Math.random() * THREATENED_TEXTS.length)],
+    safe: SAFE_TEXTS[Math.floor(Math.random() * SAFE_TEXTS.length)],
+    default: DEFAULT_TEXTS[Math.floor(Math.random() * DEFAULT_TEXTS.length)],
+  }), [currentBoxType]);
 
   const handlePunishmentAction = (fulfilled: boolean) => {
-    if (fulfilled) {
-      setState(prev => ({ ...prev, pendingPunishment: false }));
-    } else {
-      setExpulsionMessage(true);
-      setTimeout(() => {
-        setExpulsionMessage(false);
-        const today = getTodayDateString();
-        setState(prev => ({ 
-          ...prev, 
-          pendingPunishment: false,
-          history: {
-            ...prev.history,
-            [today]: {
-              ...(prev.history[today] || { lessonsCompleted: 0, punishedDaily: false, punished2Days: false }),
-              expelled: true
-            }
+    setPunishmentUIState(fulfilled ? 'resolving_done' : 'resolving_failed');
+    if (punishmentTimeoutRef.current) clearTimeout(punishmentTimeoutRef.current);
+    
+    punishmentTimeoutRef.current = setTimeout(() => {
+      const today = getTodayDateString();
+      setState(prev => ({ 
+        ...prev, 
+        pendingPunishment: false,
+        history: fulfilled ? prev.history : {
+          ...prev.history,
+          [today]: {
+            ...(prev.history[today] || { lessonsCompleted: 0, punishedDaily: false, punished2Days: false }),
+            expelled: true
           }
-        }));
-      }, 3000);
-    }
+        }
+      }));
+      setPunishmentUIState('idle');
+    }, 4000);
   };
 
-  const dailyGoal = state.dailyGoal || 10;
+  const handleUndoPunishment = () => {
+    if (punishmentTimeoutRef.current) clearTimeout(punishmentTimeoutRef.current);
+    setPunishmentUIState('idle');
+  };
+
   let boxClasses = "rounded-[2rem] p-6 text-white flex flex-col justify-center items-center gap-4 relative overflow-hidden shrink-0 shadow-lg transition-all duration-300 ";
   let boxContent;
 
-  if (expulsionMessage) {
-    boxClasses += "bg-slate-900";
-    boxContent = <h4 className="text-xl font-bold z-10 text-rose-500">يتم الطرد من المجموعة</h4>;
-  } else if (state.pendingPunishment) {
-    boxClasses += "bg-rose-600";
-    boxContent = (
-      <div className="relative z-10 flex flex-col items-center w-full gap-4">
-        <h4 className="text-xl font-bold">⚠️ عقاب التقصير</h4>
-        <p className="text-sm text-center font-medium leading-relaxed">
-          لم تنجز {dailyGoal * 2} درساً في اليومين الماضيين. عليك تنفيذ العقاب.
-        </p>
-        <div className="flex gap-3 w-full mt-2">
-          <button onClick={() => handlePunishmentAction(true)} className="flex-1 bg-white text-rose-600 py-3 rounded-xl font-bold text-sm shadow-sm hover:bg-rose-50 transition-colors">أتممت العقاب</button>
-          <button onClick={() => handlePunishmentAction(false)} className="flex-1 bg-rose-800 text-white py-3 rounded-xl font-bold text-sm hover:bg-rose-900 transition-colors">لم أتمم</button>
+  if (state.pendingPunishment) {
+    if (punishmentUIState === 'resolving_failed') {
+      boxClasses += "bg-slate-900";
+      boxContent = (
+        <div className="relative z-10 flex flex-col items-center w-full gap-4">
+          <h4 className="text-xl font-bold text-rose-500 text-center">{randomTexts.punishmentFailed}</h4>
+          <button onClick={handleUndoPunishment} className="mt-2 bg-slate-800 text-white px-6 py-2 rounded-xl font-bold text-sm hover:bg-slate-700 transition-colors flex items-center gap-2">
+             <RotateCcw className="w-4 h-4" /> تراجع
+          </button>
         </div>
-      </div>
-    );
+      );
+    } else if (punishmentUIState === 'resolving_done') {
+      boxClasses += "bg-emerald-600";
+      boxContent = (
+        <div className="relative z-10 flex flex-col items-center w-full gap-4">
+          <h4 className="text-xl font-bold text-white text-center">{randomTexts.punishmentDone}</h4>
+          <button onClick={handleUndoPunishment} className="mt-2 bg-emerald-800 text-white px-6 py-2 rounded-xl font-bold text-sm hover:bg-emerald-700 transition-colors flex items-center gap-2">
+             <RotateCcw className="w-4 h-4" /> تراجع
+          </button>
+        </div>
+      );
+    } else {
+      boxClasses += "bg-rose-600";
+      boxContent = (
+        <div className="relative z-10 flex flex-col items-center w-full gap-4">
+          <h4 className="text-xl font-bold text-center">{randomTexts.punishmentTitle}</h4>
+          <div className="flex gap-3 w-full mt-2">
+            <button onClick={() => handlePunishmentAction(true)} className="flex-1 bg-white text-rose-600 py-3 rounded-xl font-bold text-sm shadow-sm hover:bg-rose-50 transition-colors">أتممت العقاب</button>
+            <button onClick={() => handlePunishmentAction(false)} className="flex-1 bg-rose-800 text-white py-3 rounded-xl font-bold text-sm hover:bg-rose-900 transition-colors">لم أتمم</button>
+          </div>
+        </div>
+      );
+    }
   } else if (todayCompleted >= dailyGoal) {
     boxClasses += "bg-emerald-500";
-    boxContent = <h4 className="text-2xl font-bold z-10">وصلت إلى بر الأمان 🌿</h4>;
+    boxContent = <h4 className="text-2xl font-bold z-10 text-center">{randomTexts.safe}</h4>;
   } else if (!isYesterdayBeforeStart && yesterdayCompleted < dailyGoal) {
-    boxClasses += "bg-rose-500";
-    boxContent = <h4 className="text-2xl font-bold z-10">مهددة بالعقاب 🔫</h4>;
+    boxClasses += "bg-yellow-500 text-yellow-950";
+    boxContent = <h4 className="text-2xl font-bold z-10 text-center">{randomTexts.threatened}</h4>;
   } else {
     boxClasses += "bg-gradient-to-br from-blue-500 to-blue-600";
-    boxContent = <h4 className="text-xl font-bold z-10">بانتظار إنجازك اليوم 💧</h4>;
+    boxContent = <h4 className="text-xl font-bold z-10 text-center">{randomTexts.default}</h4>;
   }
 
   const handleReset = () => {
@@ -226,8 +303,8 @@ export default function App() {
   };
 
   return (
-    <div className="flex flex-col h-screen w-full bg-[#F8FAFC] font-sans text-slate-800" dir="rtl">
-      <header className="flex items-center justify-between px-4 md:px-8 py-4 bg-white border-b border-slate-200 shrink-0">
+    <div className="flex flex-col min-h-screen w-full bg-[#F8FAFC] font-sans text-slate-800" dir="rtl">
+      <header className="flex items-center justify-between px-4 md:px-8 py-4 bg-white border-b border-slate-200 shrink-0 sticky top-0 z-50">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 bg-[#059669] rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-200">
             <BookOpen className="w-6 h-6 text-white" />
@@ -255,15 +332,15 @@ export default function App() {
         </div>
       </header>
 
-      <main className="flex-1 p-4 md:p-6 flex flex-col-reverse md:flex-row gap-6 overflow-hidden max-w-7xl mx-auto w-full">
-        <section className="flex-[1.8] flex flex-col gap-4 overflow-hidden h-full">
+      <main className="flex-1 p-4 md:p-6 flex flex-col-reverse md:flex-row gap-6 max-w-7xl mx-auto w-full">
+        <section className="flex-[1.8] flex flex-col gap-4 h-full">
           <LessonsList 
             completedLessons={state.completedLessons} 
             onToggle={handleToggleLesson} 
           />
         </section>
         
-        <aside className="flex-1 flex flex-col gap-6 overflow-y-auto pb-6 pr-1">
+        <aside className="flex-1 flex flex-col gap-6 pb-6 pr-1">
           <CalendarTracker history={state.history} />
           
           <div className={boxClasses}>

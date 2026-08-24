@@ -2,6 +2,7 @@ export interface DailyStats {
   lessonsCompleted: number;
   punishedDaily: boolean;
   punished2Days: boolean;
+  expelled?: boolean;
 }
 
 export interface AppState {
