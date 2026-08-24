@@ -10,7 +10,7 @@ import { getTodayDateString, processMissedDays, addDays } from './utils';
 import { LessonsList } from './components/LessonsList';
 import { CalendarTracker } from './components/CalendarTracker';
 import { WaterGunOverlay } from './components/WaterGunOverlay';
-import { BookOpen, Settings, X, AlertTriangle, RotateCcw, CheckCircle } from 'lucide-react';
+import { BookOpen, Settings, X, AlertTriangle, RotateCcw, CheckCircle, HelpCircle } from 'lucide-react';
 
 export default function App() {
   const [state, setState] = useState<AppState>(() => {
@@ -42,6 +42,7 @@ export default function App() {
 
   const [showWaterGun, setShowWaterGun] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showInstructions, setShowInstructions] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [tempGoal, setTempGoal] = useState(state.dailyGoal || 10);
   const [toastMessage, setToastMessage] = useState("");
@@ -232,13 +233,27 @@ export default function App() {
     setPunishmentUIState('idle');
   };
 
-  let boxClasses = "rounded-[2rem] p-6 text-white flex flex-col justify-center items-center gap-4 relative overflow-hidden shrink-0 shadow-lg transition-all duration-300 ";
-  let boxContent;
+  let statusBoxClasses = "rounded-[2rem] p-6 text-white flex flex-col justify-center items-center gap-4 relative overflow-hidden shrink-0 shadow-lg transition-all duration-300 ";
+  let statusBoxContent;
+
+  if (todayCompleted >= dailyGoal) {
+    statusBoxClasses += "bg-emerald-500";
+    statusBoxContent = <h4 className="text-2xl font-bold z-10 text-center">{randomTexts.safe}</h4>;
+  } else if (!isYesterdayBeforeStart && yesterdayCompleted < dailyGoal) {
+    statusBoxClasses += "bg-yellow-500 text-yellow-950";
+    statusBoxContent = <h4 className="text-2xl font-bold z-10 text-center">{randomTexts.threatened}</h4>;
+  } else {
+    statusBoxClasses += "bg-gradient-to-br from-blue-500 to-blue-600";
+    statusBoxContent = <h4 className="text-xl font-bold z-10 text-center">{randomTexts.default}</h4>;
+  }
+
+  let punishmentBoxClasses = "rounded-[2rem] p-6 text-white flex flex-col justify-center items-center gap-4 relative overflow-hidden shrink-0 shadow-lg transition-all duration-300 ";
+  let punishmentBoxContent = null;
 
   if (state.pendingPunishment) {
     if (punishmentUIState === 'resolving_failed') {
-      boxClasses += "bg-slate-900";
-      boxContent = (
+      punishmentBoxClasses += "bg-slate-900";
+      punishmentBoxContent = (
         <div className="relative z-10 flex flex-col items-center w-full gap-4">
           <h4 className="text-xl font-bold text-rose-500 text-center">{randomTexts.punishmentFailed}</h4>
           <button onClick={handleUndoPunishment} className="mt-2 bg-slate-800 text-white px-6 py-2 rounded-xl font-bold text-sm hover:bg-slate-700 transition-colors flex items-center gap-2">
@@ -247,8 +262,8 @@ export default function App() {
         </div>
       );
     } else if (punishmentUIState === 'resolving_done') {
-      boxClasses += "bg-emerald-600";
-      boxContent = (
+      punishmentBoxClasses += "bg-emerald-600";
+      punishmentBoxContent = (
         <div className="relative z-10 flex flex-col items-center w-full gap-4">
           <h4 className="text-xl font-bold text-white text-center">{randomTexts.punishmentDone}</h4>
           <button onClick={handleUndoPunishment} className="mt-2 bg-emerald-800 text-white px-6 py-2 rounded-xl font-bold text-sm hover:bg-emerald-700 transition-colors flex items-center gap-2">
@@ -257,8 +272,8 @@ export default function App() {
         </div>
       );
     } else {
-      boxClasses += "bg-rose-600";
-      boxContent = (
+      punishmentBoxClasses += "bg-rose-600";
+      punishmentBoxContent = (
         <div className="relative z-10 flex flex-col items-center w-full gap-4">
           <h4 className="text-xl font-bold text-center">{randomTexts.punishmentTitle}</h4>
           <div className="flex gap-3 w-full mt-2">
@@ -268,15 +283,6 @@ export default function App() {
         </div>
       );
     }
-  } else if (todayCompleted >= dailyGoal) {
-    boxClasses += "bg-emerald-500";
-    boxContent = <h4 className="text-2xl font-bold z-10 text-center">{randomTexts.safe}</h4>;
-  } else if (!isYesterdayBeforeStart && yesterdayCompleted < dailyGoal) {
-    boxClasses += "bg-yellow-500 text-yellow-950";
-    boxContent = <h4 className="text-2xl font-bold z-10 text-center">{randomTexts.threatened}</h4>;
-  } else {
-    boxClasses += "bg-gradient-to-br from-blue-500 to-blue-600";
-    boxContent = <h4 className="text-xl font-bold z-10 text-center">{randomTexts.default}</h4>;
   }
 
   const handleReset = () => {
@@ -315,15 +321,23 @@ export default function App() {
           <div className="w-12 h-12 bg-[#059669] rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-200">
             <BookOpen className="w-6 h-6 text-white" />
           </div>
-          <button 
-            onClick={() => {
-              setTempGoal(state.dailyGoal || 10);
-              setShowSettings(true);
-            }} 
-            className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors"
-          >
-            <Settings className="w-5 h-5" />
-          </button>
+          <div className="flex gap-2">
+            <button 
+              onClick={() => {
+                setTempGoal(state.dailyGoal || 10);
+                setShowSettings(true);
+              }} 
+              className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors"
+            >
+              <Settings className="w-5 h-5" />
+            </button>
+            <button 
+              onClick={() => setShowInstructions(true)} 
+              className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-500 hover:bg-blue-100 transition-colors"
+            >
+              <HelpCircle className="w-5 h-5" />
+            </button>
+          </div>
         </div>
         
         <div className="flex gap-2 md:gap-6 items-center">
@@ -349,9 +363,15 @@ export default function App() {
         <aside className="flex-1 flex flex-col gap-6 pb-6 pr-1">
           <CalendarTracker history={state.history} pendingPunishment={state.pendingPunishment} />
           
-          <div className={boxClasses}>
-            {boxContent}
+          <div className={statusBoxClasses}>
+            {statusBoxContent}
           </div>
+
+          {state.pendingPunishment && (
+            <div className={punishmentBoxClasses}>
+              {punishmentBoxContent}
+            </div>
+          )}
         </aside>
       </main>
 
@@ -445,6 +465,68 @@ export default function App() {
         <div className="fixed top-6 left-1/2 -translate-x-1/2 bg-emerald-500 text-white px-6 py-3 rounded-full shadow-lg z-[100] flex items-center gap-2">
           <CheckCircle className="w-5 h-5" />
           <span className="font-bold text-sm">{toastMessage}</span>
+        </div>
+      )}
+
+      {showInstructions && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[90vh]" dir="rtl">
+            <div className="flex justify-between items-center p-6 border-b border-slate-100 shrink-0">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <HelpCircle className="w-5 h-5 text-blue-500" />
+                تعليمات البرنامج
+              </h2>
+              <button 
+                onClick={() => setShowInstructions(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto flex flex-col gap-6 text-slate-700 text-sm leading-relaxed">
+              <div className="flex gap-4">
+                <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold shrink-0">١</div>
+                <div>
+                  <h3 className="font-bold text-base mb-1">الهدف اليومي</h3>
+                  <p>عليك إكمال الحد الأدنى من الدروس يومياً (يمكنك تعديله من الإعدادات، الافتراضي هو ١٠ دروس).</p>
+                </div>
+              </div>
+              
+              <div className="flex gap-4">
+                <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center font-bold shrink-0">٢</div>
+                <div>
+                  <h3 className="font-bold text-base mb-1">منطقة التهديد</h3>
+                  <p>إذا لم تنجزي الحد الأدنى في يوم ما، ستكونين مهددة بالعقاب في اليوم التالي. الصندوق سيتحول للون الأصفر التحذيري.</p>
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                <div className="w-8 h-8 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center font-bold shrink-0">٣</div>
+                <div>
+                  <h3 className="font-bold text-base mb-1">العقاب</h3>
+                  <p>إذا قصرتِ في إنجاز الهدف اليومي ليومين متتاليين، سيطبق عليكِ العقاب، وسيظهر صندوق أحمر منفصل لطلب تنفيذ العقاب.</p>
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                <div className="w-8 h-8 rounded-full bg-slate-800 text-white flex items-center justify-center font-bold shrink-0">٤</div>
+                <div>
+                  <h3 className="font-bold text-base mb-1">الطرد من المجموعة</h3>
+                  <p>عند وقوع العقاب، يجب عليكِ الضغط على "أتممت العقاب". إذا ضغطتِ على "لم أتمم" سيتم طردك نهائياً من المجموعة (يمكنك التراجع خلال ٤ ثوانٍ).</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="p-4 border-t border-slate-100 bg-slate-50 shrink-0">
+              <button 
+                onClick={() => setShowInstructions(false)}
+                className="w-full bg-slate-800 text-white py-3 rounded-xl font-bold hover:bg-slate-700 transition-colors"
+              >
+                فهمت ذلك 👍
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
