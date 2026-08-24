@@ -363,15 +363,15 @@ export default function App() {
         <aside className="flex-1 flex flex-col gap-6 pb-6 pr-1">
           <CalendarTracker history={state.history} pendingPunishment={state.pendingPunishment} />
           
-          <div className={statusBoxClasses}>
-            {statusBoxContent}
-          </div>
-
           {state.pendingPunishment && (
             <div className={punishmentBoxClasses}>
               {punishmentBoxContent}
             </div>
           )}
+
+          <div className={statusBoxClasses}>
+            {statusBoxContent}
+          </div>
         </aside>
       </main>
 
@@ -505,7 +505,7 @@ export default function App() {
                 <div className="w-8 h-8 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center font-bold shrink-0">٣</div>
                 <div>
                   <h3 className="font-bold text-base mb-1">العقاب</h3>
-                  <p>إذا قصرتِ في إنجاز الهدف اليومي ليومين متتاليين، سيطبق عليكِ العقاب، وسيظهر صندوق أحمر منفصل لطلب تنفيذ العقاب.</p>
+                  <p>لتجنب العقاب، عليكِ إكمال {dailyGoal * 2} درساً في يومين متتاليين. إذا قصرتِ في ذلك، سيطبق عليكِ العقاب وسيظهر صندوق أحمر منفصل لطلب تنفيذه.</p>
                 </div>
               </div>
 
