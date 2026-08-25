@@ -24,52 +24,61 @@ export function CalendarTracker({ history, pendingPunishment }: CalendarTrackerP
             const stats = history[date];
             const isToday = date === today;
             const hasLessons = stats && stats.lessonsCompleted > 0;
-            const expelled = stats?.expelled;
+            const expelled = stats?.failedPunishments ? true : stats?.expelled;
+            const resolved = stats?.resolvedPunishments || (stats?.punishmentResolved ? 1 : 0);
             const punished = stats?.punishedDaily || stats?.punished2Days;
             const completed = stats?.lessonsCompleted || 0;
             
             let boxClass = "w-8 h-8 sm:w-10 sm:h-10 mx-auto rounded-lg flex items-center justify-center text-xs font-bold transition-all cursor-pointer hover:scale-110 active:scale-95 relative ";
             let content: React.ReactNode = "";
+            
+            let extraBadges = [];
+            if (resolved > 0) {
+              extraBadges.push(<span key="res" className="absolute -bottom-1.5 -left-1.5 text-[14px]">✅</span>);
+            }
+            if (expelled) {
+              extraBadges.push(<span key="exp" className="absolute -bottom-1.5 -left-1.5 text-[14px]">🔪</span>);
+            }
 
             if (isToday) {
                 if (expelled) {
                     boxClass += "bg-slate-100 border-2 border-slate-800 text-lg shadow-sm";
-                    content = "🔪";
+                    content = <>🔪{extraBadges}</>;
                 } else if (punished) {
                     boxClass += "bg-red-100 border-2 border-red-500 text-lg shadow-sm";
-                    content = "🔫";
+                    content = <>🔫{extraBadges}</>;
                 } else if (completed >= 20) {
                     boxClass += "bg-emerald-100 border-2 border-emerald-500 text-emerald-700";
-                    content = <>{completed}<span className="absolute -top-1.5 -right-1.5 text-[14px]">⭐</span></>;
+                    content = <>{completed}<span className="absolute -top-1.5 -right-1.5 text-[14px]">⭐</span>{extraBadges}</>;
                 } else if (completed >= 10) {
                     boxClass += "bg-emerald-50 border-2 border-emerald-400 text-emerald-600";
-                    content = completed;
+                    content = <>{completed}{extraBadges}</>;
                 } else if (stats) {
                     boxClass += "bg-amber-50 border-2 border-amber-400 text-amber-600";
-                    content = completed;
+                    content = <>{completed}{extraBadges}</>;
                 } else {
                     boxClass += "bg-slate-50 border-2 border-slate-200 text-slate-400";
-                    content = "";
+                    content = <>{extraBadges}</>;
                 }
             } else {
                 if (expelled) {
                     boxClass += "bg-slate-800 text-white text-lg shadow-sm";
-                    content = "🔪";
+                    content = <>🔪{extraBadges}</>;
                 } else if (punished) {
                     boxClass += "bg-red-500 text-white text-lg shadow-sm shadow-red-200";
-                    content = "🔫";
+                    content = <>🔫{extraBadges}</>;
                 } else if (completed >= 20) {
                     boxClass += "bg-emerald-500 text-white shadow-sm shadow-emerald-200";
-                    content = <>{completed}<span className="absolute -top-1.5 -right-1.5 text-[14px]">⭐</span></>;
+                    content = <>{completed}<span className="absolute -top-1.5 -right-1.5 text-[14px]">⭐</span>{extraBadges}</>;
                 } else if (completed >= 10) {
                     boxClass += "bg-emerald-400 text-white shadow-sm shadow-emerald-100";
-                    content = completed;
+                    content = <>{completed}{extraBadges}</>;
                 } else if (stats) {
                     boxClass += "bg-amber-400 text-white shadow-sm shadow-amber-200";
-                    content = completed;
+                    content = <>{completed}{extraBadges}</>;
                 } else {
                     boxClass += "bg-slate-100 text-transparent hover:bg-slate-200";
-                    content = "";
+                    content = <>{extraBadges}</>;
                 }
             }
             

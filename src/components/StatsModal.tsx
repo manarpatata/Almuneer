@@ -6,42 +6,48 @@ import { AppState, DailyStats } from '../types';
 interface StatsModalProps {
   history: Record<string, DailyStats>;
   dailyGoal: number;
+  khatmatCount: number;
   onClose: () => void;
 }
 
-export function StatsModal({ history, dailyGoal, onClose }: StatsModalProps) {
+export function StatsModal({ history, dailyGoal, khatmatCount, onClose }: StatsModalProps) {
   let totalLessons = 0;
-  let khatmas = 0; // days with 28 lessons
   let superDays = 0; // days with >= 20 lessons (but < 28)
   let normalDays = 0; // days with >= dailyGoal (but < 20)
   let threatenedDays = 0; // days with < dailyGoal (but not punished)
   let punishments = 0;
   let expulsions = 0;
-  let score = 0;
+  let score = khatmatCount * 100;
+  let resolvedPunishments = 0;
 
   Object.values(history).forEach(day => {
     totalLessons += day.lessonsCompleted;
     
+    // Counters
+    const failed = day.failedPunishments || (day.expelled ? 1 : 0);
+    const resolved = day.resolvedPunishments || (day.punishmentResolved ? 1 : 0);
+    
+    expulsions += failed;
+    resolvedPunishments += resolved;
+    
     // Penalties
-    if (day.expelled) {
-      expulsions++;
-      score -= 100;
-    } else if (day.punished2Days || day.punishedDaily) {
+    score -= failed * 100;
+    
+    if (day.punished2Days || day.punishedDaily) {
       punishments++;
       score -= 50;
-    } else if (day.lessonsCompleted < dailyGoal) {
+    }
+    
+    if (day.lessonsCompleted < dailyGoal) {
       threatenedDays++;
       score -= 10;
     }
 
     // Rewards
-    if (day.lessonsCompleted === 28) {
-      khatmas++;
-      score += 100;
-    } else if (day.lessonsCompleted >= 20) {
+    if (day.lessonsCompleted >= 20 && day.lessonsCompleted < 28) {
       superDays++;
       score += 50;
-    } else if (day.lessonsCompleted >= dailyGoal) {
+    } else if (day.lessonsCompleted >= dailyGoal && day.lessonsCompleted < 20) {
       normalDays++;
       score += 10;
     }
@@ -97,7 +103,7 @@ export function StatsModal({ history, dailyGoal, onClose }: StatsModalProps) {
               </div>
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col items-center text-center">
                 <Star className="w-8 h-8 text-yellow-500 mb-2" />
-                <span className="text-2xl font-bold text-slate-800 font-mono">{khatmas}</span>
+                <span className="text-2xl font-bold text-slate-800 font-mono">{khatmatCount}</span>
                 <span className="text-xs font-bold text-slate-500">الختمات الكاملة (٢٨)</span>
               </div>
             </div>
@@ -144,10 +150,22 @@ export function StatsModal({ history, dailyGoal, onClose }: StatsModalProps) {
                   <div className="w-8 h-8 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center">
                     <ShieldAlert className="w-4 h-4" />
                   </div>
-                  <span className="font-bold text-slate-700 text-sm">العقابات</span>
+                  <span className="font-bold text-slate-700 text-sm">العقابات النازلة</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="font-bold font-mono text-rose-600">{punishments}</span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between p-3 bg-emerald-50/50 rounded-xl">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                    <ShieldAlert className="w-4 h-4" />
+                  </div>
+                  <span className="font-bold text-slate-700 text-sm">العقابات المنجزة</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold font-mono text-emerald-600">{resolvedPunishments}</span>
                 </div>
               </div>
 

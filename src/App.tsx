@@ -185,26 +185,27 @@ export default function App() {
   const dailyGoal = state.dailyGoal || 10;
 
   const currentScore = useMemo(() => {
-    let score = 0;
+    let score = state.khatmatCount * 100;
     Object.values(state.history).forEach((day: any) => {
-      if (day.expelled) {
-        score -= 100;
-      } else if (day.punished2Days || day.punishedDaily) {
+      const failed = day.failedPunishments || (day.expelled ? 1 : 0);
+      score -= failed * 100;
+      
+      if (day.punished2Days || day.punishedDaily) {
         score -= 50;
-      } else if (day.lessonsCompleted < dailyGoal) {
+      }
+      
+      if (day.lessonsCompleted < dailyGoal) {
         score -= 10;
       }
 
-      if (day.lessonsCompleted === 28) {
-        score += 100;
-      } else if (day.lessonsCompleted >= 20) {
+      if (day.lessonsCompleted >= 20 && day.lessonsCompleted < 28) {
         score += 50;
-      } else if (day.lessonsCompleted >= dailyGoal) {
+      } else if (day.lessonsCompleted >= dailyGoal && day.lessonsCompleted < 20) {
         score += 10;
       }
     });
     return Math.max(0, score);
-  }, [state.history, dailyGoal]);
+  }, [state.history, dailyGoal, state.khatmatCount]);
 
   const todayCompleted = state.history[getTodayDateString()]?.lessonsCompleted || 0;
   const yesterdayDate = addDays(getTodayDateString(), -1);
@@ -241,13 +242,15 @@ export default function App() {
             ...prev.history,
             [today]: {
               ...(prev.history[today] || { lessonsCompleted: 0, punishedDaily: false, punished2Days: false }),
-              punishmentResolved: true
+              resolvedPunishments: (prev.history[today]?.resolvedPunishments || 0) + 1,
+              punishmentResolved: true // Keep for backward compatibility
             }
           } : {
             ...prev.history,
             [today]: {
               ...(prev.history[today] || { lessonsCompleted: 0, punishedDaily: false, punished2Days: false }),
-              expelled: true
+              failedPunishments: (prev.history[today]?.failedPunishments || 0) + 1,
+              expelled: true // Keep for backward compatibility
             }
           }
         };
@@ -259,6 +262,50 @@ export default function App() {
   const handleUndoPunishment = (index: number) => {
     if (punishmentTimeoutRefs.current[index]) clearTimeout(punishmentTimeoutRefs.current[index]);
     setPunishmentUIStates(prev => ({ ...prev, [index]: 'idle' }));
+  };
+
+  const handleGenerateTestData = () => {
+    const newHistory: Record<string, any> = {};
+    const todayStr = getTodayDateString();
+    let currDate = addDays(todayStr, -7);
+    
+    let totalCompleted = 0;
+    
+    while (currDate <= todayStr) {
+      const rand = Math.random();
+      let lessons = 0;
+      if (rand > 0.8) lessons = 28;
+      else if (rand > 0.5) lessons = 20;
+      else if (rand > 0.3) lessons = 10;
+      else if (rand > 0.15) lessons = 5;
+      else lessons = 0;
+      
+      newHistory[currDate] = { lessonsCompleted: lessons, punishedDaily: false, punished2Days: false };
+      totalCompleted += lessons;
+      currDate = addDays(currDate, 1);
+    }
+    
+    const tempState: AppState = {
+      completedLessons: [],
+      khatmatCount: Math.floor(totalCompleted / 28),
+      history: newHistory,
+      lastLoginDate: addDays(todayStr, -7),
+      startDate: addDays(todayStr, -7),
+      dailyGoal: state.dailyGoal || 10,
+      pendingPunishment: false,
+      pendingPunishmentsCount: 0
+    };
+    
+    const { newState } = processMissedDays(tempState);
+    if (!newState.history[todayStr]) {
+      newState.history[todayStr] = { lessonsCompleted: 0, punishedDaily: false, punished2Days: false };
+    }
+    newState.lastLoginDate = todayStr;
+    
+    setState(newState);
+    setToastMessage("تم توليد بيانات اختبار بنجاح 🧪");
+    setTimeout(() => setToastMessage(""), 3000);
+    setShowSettings(false);
   };
 
   const total2Days = todayCompleted + yesterdayCompleted;
@@ -274,7 +321,7 @@ export default function App() {
   );
 
   if (total2Days < dailyGoal) {
-    statusBoxClasses += "bg-yellow-500 text-yellow-950";
+    statusBoxClasses += "bg-gradient-to-br from-amber-400 to-amber-500 text-amber-950 shadow-amber-200/50";
     statusBoxContent = (
       <>
         {cornerFraction}
@@ -282,7 +329,7 @@ export default function App() {
       </>
     );
   } else if (total2Days >= dailyGoal && total2Days < twoDayGoal) {
-    statusBoxClasses += "bg-gradient-to-br from-blue-500 to-blue-600";
+    statusBoxClasses += "bg-gradient-to-br from-indigo-500 to-blue-600 shadow-blue-200/50";
     statusBoxContent = (
       <>
         {cornerFraction}
@@ -290,7 +337,7 @@ export default function App() {
       </>
     );
   } else {
-    statusBoxClasses += "bg-emerald-500";
+    statusBoxClasses += "bg-gradient-to-br from-emerald-400 to-emerald-500 shadow-emerald-200/50";
     statusBoxContent = (
       <>
         {cornerFraction}
@@ -330,11 +377,11 @@ export default function App() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen w-full bg-[#F8FAFC] font-sans text-slate-800" dir="rtl">
-      <header className="flex items-center justify-between px-4 md:px-8 py-4 bg-white border-b border-slate-200 shrink-0 sticky top-0 z-50">
+    <div className="flex flex-col min-h-screen w-full bg-gradient-to-br from-slate-50 to-slate-100/80 font-sans text-slate-800" dir="rtl">
+      <header className="flex items-center justify-between px-4 md:px-8 py-4 bg-white/80 backdrop-blur-md border-b border-slate-200 shrink-0 sticky top-0 z-50">
         <div className="flex items-center gap-4 md:gap-6">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 md:w-12 md:h-12 bg-[#059669] rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-200 shrink-0">
+            <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-200/50 shrink-0">
               <BookOpen className="w-5 h-5 md:w-6 md:h-6 text-white" />
             </div>
             <button
@@ -408,27 +455,27 @@ export default function App() {
             let content;
 
             if (uiState === 'resolving_failed') {
-              classes += "bg-slate-900";
+              classes += "bg-gradient-to-br from-slate-800 to-slate-900 shadow-slate-300/50";
               content = (
                 <div className="relative z-10 flex flex-col items-center w-full gap-4">
                   <h4 className="text-xl font-bold text-rose-500 text-center">{randomTexts.punishmentFailed}</h4>
-                  <button onClick={() => handleUndoPunishment(idx)} className="mt-2 bg-slate-800 text-white px-6 py-2 rounded-xl font-bold text-sm hover:bg-slate-700 transition-colors flex items-center gap-2">
+                  <button onClick={() => handleUndoPunishment(idx)} className="mt-2 bg-slate-700/50 text-white px-6 py-2 rounded-xl font-bold text-sm hover:bg-slate-600 transition-colors flex items-center gap-2">
                     <RotateCcw className="w-4 h-4" /> تراجع
                   </button>
                 </div>
               );
             } else if (uiState === 'resolving_done') {
-              classes += "bg-emerald-600";
+              classes += "bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-200/50";
               content = (
                 <div className="relative z-10 flex flex-col items-center w-full gap-4">
                   <h4 className="text-xl font-bold text-white text-center">{randomTexts.punishmentDone}</h4>
-                  <button onClick={() => handleUndoPunishment(idx)} className="mt-2 bg-emerald-800 text-white px-6 py-2 rounded-xl font-bold text-sm hover:bg-emerald-700 transition-colors flex items-center gap-2">
+                  <button onClick={() => handleUndoPunishment(idx)} className="mt-2 bg-emerald-800/50 text-white px-6 py-2 rounded-xl font-bold text-sm hover:bg-emerald-700 transition-colors flex items-center gap-2">
                     <RotateCcw className="w-4 h-4" /> تراجع
                   </button>
                 </div>
               );
             } else {
-              classes += "bg-rose-600";
+              classes += "bg-gradient-to-br from-rose-500 to-red-600 shadow-rose-200/50";
               content = (
                 <div className="relative z-10 flex flex-col items-center w-full gap-4">
                   <h4 className="text-xl font-bold text-center">{randomTexts.punishmentTitle}</h4>
@@ -523,6 +570,13 @@ export default function App() {
                   <RotateCcw className="w-4 h-4" />
                   تصفير الإنجازات
                 </button>
+                <button 
+                  onClick={handleGenerateTestData}
+                  className="mt-2 w-full flex items-center justify-center gap-2 bg-indigo-50 text-indigo-600 py-3 rounded-xl font-bold text-sm shadow-sm hover:bg-indigo-100 transition-colors"
+                >
+                  <BookOpen className="w-4 h-4" />
+                  توليد بيانات اختبار عشوائية (أسبوع)
+                </button>
               </div>
             </div>
           </div>
@@ -550,6 +604,7 @@ export default function App() {
         <StatsModal 
           history={state.history}
           dailyGoal={dailyGoal}
+          khatmatCount={state.khatmatCount}
           onClose={() => setShowStats(false)}
         />
       )}
