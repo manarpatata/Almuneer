@@ -7,10 +7,11 @@ interface StatsModalProps {
   history: Record<string, DailyStats>;
   dailyGoal: number;
   khatmatCount: number;
+  immunityCards: number;
   onClose: () => void;
 }
 
-export function StatsModal({ history, dailyGoal, khatmatCount, onClose }: StatsModalProps) {
+export function StatsModal({ history, dailyGoal, khatmatCount, immunityCards, onClose }: StatsModalProps) {
   let totalLessons = 0;
   let superDays = 0; // days with >= 20 lessons (but < 28)
   let normalDays = 0; // days with >= dailyGoal (but < 20)
@@ -102,6 +103,16 @@ export function StatsModal({ history, dailyGoal, khatmatCount, onClose }: StatsM
                 <Star className="w-8 h-8 text-yellow-500 mb-2" />
                 <span className="text-2xl font-bold text-slate-800 font-mono">{khatmatCount}</span>
                 <span className="text-xs font-bold text-slate-500">الختمات الكاملة (٢٨)</span>
+              </div>
+              <div className="col-span-2 bg-yellow-50 p-4 rounded-2xl border border-yellow-100 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center text-xl">🎫</div>
+                  <div className="flex flex-col">
+                    <span className="font-bold text-yellow-900">كروت الإعفاء من العقاب</span>
+                    <span className="text-xs font-medium text-yellow-700">رصيدك الحالي من الكروت</span>
+                  </div>
+                </div>
+                <span className="text-3xl font-black font-mono text-yellow-600">{immunityCards || 0}</span>
               </div>
             </div>
 

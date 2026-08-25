@@ -1,7 +1,7 @@
 import React, { useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { DailyStats } from '../types';
-import { getDayNameArabic, getShortDate, addDays } from '../utils';
+import { getDayNameArabic, getShortDate, addDays, getTodayDateString } from '../utils';
 import { toBlob } from 'html-to-image';
 import { Share2, X, Trophy } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, XAxis } from 'recharts';
@@ -27,6 +27,7 @@ interface DayProgressModalProps {
   dailyGoal: number;
   currentScore: number;
   pendingPunishment?: boolean;
+  pendingPunishmentsCount?: number;
   onClose: () => void;
 }
 
@@ -82,7 +83,15 @@ const PUNISHMENT_FAILED_PHRASES = [
   "تمت تصفيتك من الجروب 🔪🧹"
 ];
 
-export function DayProgressModal({ date, stats, history, dailyGoal, currentScore, pendingPunishment, onClose }: DayProgressModalProps) {
+const PARDONED_REPORT_PHRASES = [
+  "كرتها السحري أبعد عنها العقاب 🎫",
+  "سحبت كرت الإعفاء من العقاب 🎫",
+  "فعّلت كرت الإعفاء بنجاح 🎫",
+  "لعبت ورقتها الرابحة.. الإعفاء من العقاب 🎫",
+  "استخدمت كرت الإعفاء من العقاب 🎫"
+];
+
+export function DayProgressModal({ date, stats, history, dailyGoal, currentScore, pendingPunishment, pendingPunishmentsCount, onClose }: DayProgressModalProps) {
   const cardRef = useRef<HTMLDivElement>(null);
 
   const handleShare = async () => {
@@ -120,47 +129,22 @@ export function DayProgressModal({ date, stats, history, dailyGoal, currentScore
   const expelled = stats?.expelled;
   const completed = stats?.lessonsCompleted || 0;
 
-  const punishmentResolutionData = useMemo(() => {
-    if (!date) return null;
-    let lastPunishedDate = null;
-    let curr = date;
-    for (let i = 0; i < 30; i++) {
-      if (history[curr]?.punished2Days) {
-        lastPunishedDate = curr;
-        break;
-      }
-      curr = addDays(curr, -1);
-    }
+  const statuses: string[] = [];
+  if (date) {
+    const resolvedCount = stats?.resolvedPunishments || (stats?.punishmentResolved ? 1 : 0);
+    for (let i = 0; i < resolvedCount; i++) statuses.push('completed');
 
-    if (lastPunishedDate) {
-      let resolvedOnDate = null;
-      let failedOnDate = null;
-      let checkDate = addDays(lastPunishedDate, 1);
-      
-      while (checkDate <= date) {
-        if (history[checkDate]?.expelled) {
-          failedOnDate = checkDate;
-          break;
-        }
-        if (history[checkDate]?.punishmentResolved) {
-          resolvedOnDate = checkDate;
-          break;
-        }
-        checkDate = addDays(checkDate, 1);
-      }
+    const failedCount = stats?.failedPunishments || (stats?.expelled ? 1 : 0);
+    for (let i = 0; i < failedCount; i++) statuses.push('failed');
 
-      if (failedOnDate && failedOnDate === date) {
-        return 'failed';
-      } else if (resolvedOnDate && resolvedOnDate === date) {
-        return 'completed';
-      } else if (!failedOnDate && !resolvedOnDate) {
-        if (date > lastPunishedDate) {
-          return 'pending';
-        }
-      }
+    const pardonedCount = stats?.pardonedPunishments || 0;
+    for (let i = 0; i < pardonedCount; i++) statuses.push('pardoned');
+
+    if (date === getTodayDateString()) {
+      const pCount = pendingPunishmentsCount || (pendingPunishment ? 1 : 0);
+      for (let i = 0; i < pCount; i++) statuses.push('pending');
     }
-    return null;
-  }, [date, history]);
+  }
 
   let message = "";
   let msgColor = "";
@@ -169,7 +153,7 @@ export function DayProgressModal({ date, stats, history, dailyGoal, currentScore
   if (date) {
     const dateHash = date.split('-').reduce((acc, part) => acc + parseInt(part), 0);
     
-    if (expelled && !punishmentResolutionData) {
+    if (statuses.includes('failed')) {
       message = "طرد تأديبي 🚪";
       msgColor = "text-slate-800";
     } else if (punished) {
@@ -186,25 +170,38 @@ export function DayProgressModal({ date, stats, history, dailyGoal, currentScore
       msgColor = "text-amber-500";
     }
 
-    if (punishmentResolutionData === 'completed') {
-      statusBlock = (
-        <div className="mt-4 bg-rose-500 text-white rounded-xl p-3 font-bold text-sm shadow-sm">
-          {PUNISHMENT_COMPLETED_PHRASES[dateHash % PUNISHMENT_COMPLETED_PHRASES.length]}
-        </div>
-      );
-    } else if (punishmentResolutionData === 'pending') {
-      statusBlock = (
-        <div className="mt-4 bg-rose-500 text-white rounded-xl p-3 font-bold text-sm shadow-sm animate-pulse">
-          {PUNISHMENT_PENDING_PHRASES[dateHash % PUNISHMENT_PENDING_PHRASES.length]}
-        </div>
-      );
-    } else if (punishmentResolutionData === 'failed') {
-      statusBlock = (
-        <div className="mt-4 bg-rose-500 text-white rounded-xl p-3 font-bold text-sm shadow-sm">
-          {PUNISHMENT_FAILED_PHRASES[dateHash % PUNISHMENT_FAILED_PHRASES.length]}
-        </div>
-      );
-    }
+    statusBlock = (
+      <div className="flex flex-col gap-2">
+        {statuses.map((status, idx) => {
+          if (status === 'completed') {
+            return (
+              <div key={`completed-${idx}`} className="bg-emerald-500 text-white rounded-xl p-3 font-bold text-sm shadow-sm">
+                {PUNISHMENT_COMPLETED_PHRASES[(dateHash + idx) % PUNISHMENT_COMPLETED_PHRASES.length]}
+              </div>
+            );
+          } else if (status === 'pending') {
+            return (
+              <div key={`pending-${idx}`} className="bg-rose-500 text-white rounded-xl p-3 font-bold text-sm shadow-sm animate-pulse">
+                {PUNISHMENT_PENDING_PHRASES[(dateHash + idx) % PUNISHMENT_PENDING_PHRASES.length]}
+              </div>
+            );
+          } else if (status === 'failed') {
+            return (
+              <div key={`failed-${idx}`} className="bg-slate-800 text-white rounded-xl p-3 font-bold text-sm shadow-sm">
+                {PUNISHMENT_FAILED_PHRASES[(dateHash + idx) % PUNISHMENT_FAILED_PHRASES.length]}
+              </div>
+            );
+          } else if (status === 'pardoned') {
+            return (
+              <div key={`pardoned-${idx}`} className="bg-yellow-400 text-yellow-900 rounded-xl p-3 font-bold text-sm shadow-sm">
+                {PARDONED_REPORT_PHRASES[(dateHash + idx) % PARDONED_REPORT_PHRASES.length]}
+              </div>
+            );
+          }
+          return null;
+        })}
+      </div>
+    );
   }
 
   const chartData = date ? Array.from({ length: 7 }, (_, i) => {

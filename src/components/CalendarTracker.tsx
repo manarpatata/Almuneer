@@ -10,9 +10,10 @@ interface CalendarTrackerProps {
   dailyGoal: number;
   currentScore: number;
   pendingPunishment?: boolean;
+  pendingPunishmentsCount?: number;
 }
 
-export function CalendarTracker({ history, dailyGoal, currentScore, pendingPunishment }: CalendarTrackerProps) {
+export function CalendarTracker({ history, dailyGoal, currentScore, pendingPunishment, pendingPunishmentsCount }: CalendarTrackerProps) {
   const today = getTodayDateString();
   const past7Days = Array.from({ length: 7 }, (_, i) => addDays(today, -6 + i));
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -111,6 +112,7 @@ export function CalendarTracker({ history, dailyGoal, currentScore, pendingPunis
         dailyGoal={dailyGoal}
         currentScore={currentScore}
         pendingPunishment={pendingPunishment}
+        pendingPunishmentsCount={pendingPunishmentsCount}
         onClose={() => setSelectedDate(null)} 
       />
     </>

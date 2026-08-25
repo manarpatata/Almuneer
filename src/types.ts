@@ -5,6 +5,7 @@ export interface DailyStats {
   expelled?: boolean;
   resolvedPunishments?: number;
   failedPunishments?: number;
+  pardonedPunishments?: number;
   punishmentResolved?: boolean;
 }
 
@@ -17,4 +18,7 @@ export interface AppState {
   pendingPunishment?: boolean;
   pendingPunishmentsCount?: number;
   dailyGoal?: number;
+  immunityCards?: number;
+  unclaimedGifts?: number;
+  earnedGiftDates?: string[];
 }

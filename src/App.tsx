@@ -11,7 +11,7 @@ import { LessonsList } from './components/LessonsList';
 import { CalendarTracker } from './components/CalendarTracker';
 import { WaterGunOverlay } from './components/WaterGunOverlay';
 import { StatsModal } from './components/StatsModal';
-import { BookOpen, Settings, X, AlertTriangle, RotateCcw, CheckCircle, HelpCircle, Trophy } from 'lucide-react';
+import { BookOpen, Settings, X, AlertTriangle, RotateCcw, CheckCircle, HelpCircle, Trophy, Gift } from 'lucide-react';
 
 export default function App() {
   const [state, setState] = useState<AppState>(() => {
@@ -104,6 +104,36 @@ export default function App() {
     }, 1000);
     return () => clearInterval(timer);
   }, [state]);
+
+  useEffect(() => {
+    let newGifts = 0;
+    let newEarnedDates = [...(state.earnedGiftDates || [])];
+    let stateChanged = false;
+
+    const dates = Object.keys(state.history).sort();
+    for (let i = 1; i < dates.length; i++) {
+      const curr = dates[i];
+      const prev = dates[i - 1];
+      
+      if (addDays(prev, 1) === curr) {
+        if (state.history[curr].lessonsCompleted >= 20 && state.history[prev].lessonsCompleted >= 20) {
+          if (!newEarnedDates.includes(curr)) {
+            newEarnedDates.push(curr);
+            newGifts++;
+            stateChanged = true;
+          }
+        }
+      }
+    }
+
+    if (stateChanged) {
+      setState(s => ({
+        ...s,
+        earnedGiftDates: newEarnedDates,
+        unclaimedGifts: (s.unclaimedGifts || 0) + newGifts
+      }));
+    }
+  }, [state.history, state.earnedGiftDates]);
 
   const handleToggleLesson = (lesson: string, isCompleted: boolean) => {
     const today = getTodayDateString();
@@ -225,6 +255,51 @@ export default function App() {
     safe: SAFE_TEXTS[Math.floor(Math.random() * SAFE_TEXTS.length)],
     default: DEFAULT_TEXTS[Math.floor(Math.random() * DEFAULT_TEXTS.length)],
   }), [currentBoxType]);
+
+  const PARDONED_BOX_PHRASES = useMemo(() => [
+    "كرتك السحري أبعد عنكِ العقاب 🎫",
+    "سحبتِ كرت الإعفاء من العقاب 🎫",
+    "فعّلتِ كرت الإعفاء بنجاح 🎫",
+    "لعبتِ ورقتك الرابحة.. الإعفاء من العقاب 🎫",
+    "استخدمتِ كرت الإعفاء من العقاب 🎫"
+  ], []);
+
+  const handleClaimGift = () => {
+    setState(prev => ({
+      ...prev,
+      unclaimedGifts: Math.max(0, (prev.unclaimedGifts || 0) - 1),
+      immunityCards: (prev.immunityCards || 0) + 1
+    }));
+    setToastMessage("حصلتِ على كرت إعفاء من العقاب! 🎫");
+    setTimeout(() => setToastMessage(""), 3000);
+  };
+
+  const handleUseCardAction = (index: number) => {
+    if ((state.immunityCards || 0) <= 0) return;
+    
+    setPunishmentUIStates(prev => ({ ...prev, [index]: 'resolving_card' }));
+    if (punishmentTimeoutRefs.current[index]) clearTimeout(punishmentTimeoutRefs.current[index]);
+    
+    punishmentTimeoutRefs.current[index] = setTimeout(() => {
+      const today = getTodayDateString();
+      setState(prev => {
+        const newCount = Math.max(0, (prev.pendingPunishmentsCount || (prev.pendingPunishment ? 1 : 0)) - 1);
+        return {
+          ...prev,
+          pendingPunishment: newCount > 0,
+          pendingPunishmentsCount: newCount,
+          immunityCards: Math.max(0, (prev.immunityCards || 0) - 1),
+          history: {
+            ...prev.history,
+            [today]: {
+              ...(prev.history[today] || { lessonsCompleted: 0, punishedDaily: false, punished2Days: false }),
+              pardonedPunishments: (prev.history[today]?.pardonedPunishments || 0) + 1
+            }
+          }
+        };
+      });
+    }, 3000);
+  };
 
   const handlePunishmentAction = (index: number, fulfilled: boolean) => {
     setPunishmentUIStates(prev => ({ ...prev, [index]: fulfilled ? 'resolving_done' : 'resolving_failed' }));
@@ -447,8 +522,23 @@ export default function App() {
         </section>
         
         <aside className="flex-1 flex flex-col gap-6 pb-6 pr-1">
-          <CalendarTracker history={state.history} dailyGoal={dailyGoal} currentScore={currentScore} pendingPunishment={state.pendingPunishment} />
+          <CalendarTracker history={state.history} dailyGoal={dailyGoal} currentScore={currentScore} pendingPunishment={state.pendingPunishment} pendingPunishmentsCount={state.pendingPunishmentsCount} />
           
+          {(state.unclaimedGifts || 0) > 0 && (
+            <div onClick={handleClaimGift} className="bg-gradient-to-r from-yellow-50 to-yellow-100 border-2 border-yellow-300 rounded-[2rem] p-5 flex items-center justify-between shadow-lg shadow-yellow-200/50 cursor-pointer hover:scale-[1.02] transition-transform">
+               <div className="flex items-center gap-4">
+                 <div className="text-4xl animate-bounce">🎁</div>
+                 <div>
+                   <h3 className="font-bold text-yellow-800 text-lg">هدية جديدة بانتظارك!</h3>
+                   <p className="text-yellow-700 text-sm font-medium">لإتمامك ٢٠ درس أو أكثر ليومين متتاليين</p>
+                 </div>
+               </div>
+               <button className="bg-yellow-500 text-white font-bold px-4 py-2 rounded-xl shadow-sm hover:bg-yellow-600 transition-colors shrink-0">
+                 افتح الهدية
+               </button>
+            </div>
+          )}
+
           {Array.from({ length: state.pendingPunishmentsCount || (state.pendingPunishment ? 1 : 0) }).map((_, idx) => {
             let classes = "rounded-[2rem] p-6 text-white flex flex-col justify-center items-center gap-4 relative overflow-hidden shrink-0 shadow-lg transition-all duration-300 ";
             const uiState = punishmentUIStates[idx] || 'idle';
@@ -474,6 +564,17 @@ export default function App() {
                   </button>
                 </div>
               );
+            } else if (uiState === 'resolving_card') {
+              classes += "bg-gradient-to-br from-yellow-400 to-amber-500 shadow-yellow-200/50";
+              const phrase = PARDONED_BOX_PHRASES[idx % PARDONED_BOX_PHRASES.length];
+              content = (
+                <div className="relative z-10 flex flex-col items-center w-full gap-4">
+                  <h4 className="text-xl font-bold text-yellow-900 text-center">{phrase}</h4>
+                  <button onClick={() => handleUndoPunishment(idx)} className="mt-2 bg-yellow-600/20 text-yellow-900 px-6 py-2 rounded-xl font-bold text-sm hover:bg-yellow-600/30 transition-colors flex items-center gap-2">
+                    <RotateCcw className="w-4 h-4" /> تراجع
+                  </button>
+                </div>
+              );
             } else {
               classes += "bg-gradient-to-br from-rose-500 to-red-600 shadow-rose-200/50";
               content = (
@@ -483,6 +584,12 @@ export default function App() {
                     <button onClick={() => handlePunishmentAction(idx, true)} className="flex-1 bg-white text-rose-600 py-3 rounded-xl font-bold text-sm shadow-sm hover:bg-rose-50 transition-colors">أتممت العقاب</button>
                     <button onClick={() => handlePunishmentAction(idx, false)} className="flex-1 bg-rose-800 text-white py-3 rounded-xl font-bold text-sm hover:bg-rose-900 transition-colors">لم أتمم</button>
                   </div>
+                  {(state.immunityCards || 0) > 0 && (
+                    <button onClick={() => handleUseCardAction(idx)} className="w-full bg-yellow-400 text-yellow-900 py-3 rounded-xl font-bold text-sm shadow-sm hover:bg-yellow-300 transition-colors flex justify-center items-center gap-2">
+                      <Gift className="w-4 h-4" />
+                      استخدام كرت إعفاء من العقاب 🎫
+                    </button>
+                  )}
                 </div>
               );
             }
@@ -605,6 +712,7 @@ export default function App() {
           history={state.history}
           dailyGoal={dailyGoal}
           khatmatCount={state.khatmatCount}
+          immunityCards={state.immunityCards || 0}
           onClose={() => setShowStats(false)}
         />
       )}
