@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { DailyStats } from '../types';
 import { getDayNameArabic, getShortDate, addDays } from '../utils';
 import { toBlob } from 'html-to-image';
-import { Share2, X } from 'lucide-react';
+import { Share2, X, Trophy } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, XAxis } from 'recharts';
 
 const CustomDot = (props: any) => {
@@ -24,6 +24,8 @@ interface DayProgressModalProps {
   date: string | null;
   stats: DailyStats | null;
   history: Record<string, DailyStats>;
+  dailyGoal: number;
+  currentScore: number;
   pendingPunishment?: boolean;
   onClose: () => void;
 }
@@ -80,7 +82,7 @@ const PUNISHMENT_FAILED_PHRASES = [
   "تمت تصفيتك من الجروب 🔪🧹"
 ];
 
-export function DayProgressModal({ date, stats, history, pendingPunishment, onClose }: DayProgressModalProps) {
+export function DayProgressModal({ date, stats, history, dailyGoal, currentScore, pendingPunishment, onClose }: DayProgressModalProps) {
   const cardRef = useRef<HTMLDivElement>(null);
 
   const handleShare = async () => {
@@ -237,7 +239,12 @@ export function DayProgressModal({ date, stats, history, pendingPunishment, onCl
             <div className="overflow-y-auto flex-1 w-full">
               <div ref={cardRef} className="p-6 sm:p-8 pb-6 sm:pb-10 bg-gradient-to-b from-white to-[#F8FAFC] relative flex flex-col border-b border-slate-100">
                 
-                <div className="text-center mb-4 sm:mb-6">
+                <div className="absolute top-4 sm:top-6 left-4 sm:left-6 flex items-center gap-1.5 bg-yellow-50 text-yellow-700 px-3 py-1.5 rounded-xl border border-yellow-200 shadow-sm z-10" dir="ltr">
+                  <Trophy className="w-4 h-4 text-yellow-500" />
+                  <span className="font-bold font-mono text-sm">{currentScore}</span>
+                </div>
+
+                <div className="text-center mb-4 sm:mb-6 mt-4">
                   <h3 className="text-xl sm:text-2xl font-bold text-slate-800 mb-3 sm:mb-4">{getDayNameArabic(date)}</h3>
                   <div className="flex items-center justify-center gap-2">
                     <span className="text-5xl sm:text-[3.5rem] font-black text-emerald-600 font-mono tracking-tighter leading-none" dir="ltr">

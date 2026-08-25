@@ -18,17 +18,14 @@ export function StatsModal({ history, dailyGoal, khatmatCount, onClose }: StatsM
   let punishments = 0;
   let expulsions = 0;
   let score = khatmatCount * 100;
-  let resolvedPunishments = 0;
 
   Object.values(history).forEach(day => {
     totalLessons += day.lessonsCompleted;
     
     // Counters
     const failed = day.failedPunishments || (day.expelled ? 1 : 0);
-    const resolved = day.resolvedPunishments || (day.punishmentResolved ? 1 : 0);
     
     expulsions += failed;
-    resolvedPunishments += resolved;
     
     // Penalties
     score -= failed * 100;
@@ -150,22 +147,10 @@ export function StatsModal({ history, dailyGoal, khatmatCount, onClose }: StatsM
                   <div className="w-8 h-8 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center">
                     <ShieldAlert className="w-4 h-4" />
                   </div>
-                  <span className="font-bold text-slate-700 text-sm">العقابات النازلة</span>
+                  <span className="font-bold text-slate-700 text-sm">العقابات</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="font-bold font-mono text-rose-600">{punishments}</span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between p-3 bg-emerald-50/50 rounded-xl">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
-                    <ShieldAlert className="w-4 h-4" />
-                  </div>
-                  <span className="font-bold text-slate-700 text-sm">العقابات المنجزة</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-bold font-mono text-emerald-600">{resolvedPunishments}</span>
                 </div>
               </div>
 

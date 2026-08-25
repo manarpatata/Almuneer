@@ -447,7 +447,7 @@ export default function App() {
         </section>
         
         <aside className="flex-1 flex flex-col gap-6 pb-6 pr-1">
-          <CalendarTracker history={state.history} pendingPunishment={state.pendingPunishment} />
+          <CalendarTracker history={state.history} dailyGoal={dailyGoal} currentScore={currentScore} pendingPunishment={state.pendingPunishment} />
           
           {Array.from({ length: state.pendingPunishmentsCount || (state.pendingPunishment ? 1 : 0) }).map((_, idx) => {
             let classes = "rounded-[2rem] p-6 text-white flex flex-col justify-center items-center gap-4 relative overflow-hidden shrink-0 shadow-lg transition-all duration-300 ";
