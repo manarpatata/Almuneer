@@ -10,7 +10,8 @@ import { getTodayDateString, processMissedDays, addDays } from './utils';
 import { LessonsList } from './components/LessonsList';
 import { CalendarTracker } from './components/CalendarTracker';
 import { WaterGunOverlay } from './components/WaterGunOverlay';
-import { BookOpen, Settings, X, AlertTriangle, RotateCcw, CheckCircle, HelpCircle } from 'lucide-react';
+import { StatsModal } from './components/StatsModal';
+import { BookOpen, Settings, X, AlertTriangle, RotateCcw, CheckCircle, HelpCircle, Trophy } from 'lucide-react';
 
 export default function App() {
   const [state, setState] = useState<AppState>(() => {
@@ -43,6 +44,7 @@ export default function App() {
   const [showWaterGun, setShowWaterGun] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
+  const [showStats, setShowStats] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [tempGoal, setTempGoal] = useState(state.dailyGoal || 10);
   const [toastMessage, setToastMessage] = useState("");
@@ -134,8 +136,8 @@ export default function App() {
     });
   };
 
-  const [punishmentUIState, setPunishmentUIState] = useState<'idle' | 'resolving_done' | 'resolving_failed'>('idle');
-  const punishmentTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [punishmentUIStates, setPunishmentUIStates] = useState<Record<number, 'idle' | 'resolving_done' | 'resolving_failed'>>({});
+  const punishmentTimeoutRefs = useRef<Record<number, NodeJS.Timeout>>({});
 
   const PUNISHMENT_TITLES = [
     "معاقبة من لجنة العقاب🔫💥",
@@ -182,6 +184,28 @@ export default function App() {
 
   const dailyGoal = state.dailyGoal || 10;
 
+  const currentScore = useMemo(() => {
+    let score = 0;
+    Object.values(state.history).forEach((day: any) => {
+      if (day.expelled) {
+        score -= 100;
+      } else if (day.punished2Days || day.punishedDaily) {
+        score -= 50;
+      } else if (day.lessonsCompleted < dailyGoal) {
+        score -= 10;
+      }
+
+      if (day.lessonsCompleted === 28) {
+        score += 100;
+      } else if (day.lessonsCompleted >= 20) {
+        score += 50;
+      } else if (day.lessonsCompleted >= dailyGoal) {
+        score += 10;
+      }
+    });
+    return Math.max(0, score);
+  }, [state.history, dailyGoal]);
+
   const todayCompleted = state.history[getTodayDateString()]?.lessonsCompleted || 0;
   const yesterdayDate = addDays(getTodayDateString(), -1);
   const yesterdayCompleted = state.history[yesterdayDate]?.lessonsCompleted || 0;
@@ -201,88 +225,78 @@ export default function App() {
     default: DEFAULT_TEXTS[Math.floor(Math.random() * DEFAULT_TEXTS.length)],
   }), [currentBoxType]);
 
-  const handlePunishmentAction = (fulfilled: boolean) => {
-    setPunishmentUIState(fulfilled ? 'resolving_done' : 'resolving_failed');
-    if (punishmentTimeoutRef.current) clearTimeout(punishmentTimeoutRef.current);
+  const handlePunishmentAction = (index: number, fulfilled: boolean) => {
+    setPunishmentUIStates(prev => ({ ...prev, [index]: fulfilled ? 'resolving_done' : 'resolving_failed' }));
+    if (punishmentTimeoutRefs.current[index]) clearTimeout(punishmentTimeoutRefs.current[index]);
     
-    punishmentTimeoutRef.current = setTimeout(() => {
+    punishmentTimeoutRefs.current[index] = setTimeout(() => {
       const today = getTodayDateString();
-      setState(prev => ({ 
-        ...prev, 
-        pendingPunishment: false,
-        history: fulfilled ? {
-          ...prev.history,
-          [today]: {
-            ...(prev.history[today] || { lessonsCompleted: 0, punishedDaily: false, punished2Days: false }),
-            punishmentResolved: true
+      setState(prev => {
+        const newCount = Math.max(0, (prev.pendingPunishmentsCount || (prev.pendingPunishment ? 1 : 0)) - 1);
+        return { 
+          ...prev, 
+          pendingPunishment: newCount > 0,
+          pendingPunishmentsCount: newCount,
+          history: fulfilled ? {
+            ...prev.history,
+            [today]: {
+              ...(prev.history[today] || { lessonsCompleted: 0, punishedDaily: false, punished2Days: false }),
+              punishmentResolved: true
+            }
+          } : {
+            ...prev.history,
+            [today]: {
+              ...(prev.history[today] || { lessonsCompleted: 0, punishedDaily: false, punished2Days: false }),
+              expelled: true
+            }
           }
-        } : {
-          ...prev.history,
-          [today]: {
-            ...(prev.history[today] || { lessonsCompleted: 0, punishedDaily: false, punished2Days: false }),
-            expelled: true
-          }
-        }
-      }));
-      setPunishmentUIState('idle');
+        };
+      });
+      setPunishmentUIStates(prev => ({ ...prev, [index]: 'idle' }));
     }, 4000);
   };
 
-  const handleUndoPunishment = () => {
-    if (punishmentTimeoutRef.current) clearTimeout(punishmentTimeoutRef.current);
-    setPunishmentUIState('idle');
+  const handleUndoPunishment = (index: number) => {
+    if (punishmentTimeoutRefs.current[index]) clearTimeout(punishmentTimeoutRefs.current[index]);
+    setPunishmentUIStates(prev => ({ ...prev, [index]: 'idle' }));
   };
 
+  const total2Days = todayCompleted + yesterdayCompleted;
+  const twoDayGoal = dailyGoal * 2;
+  
   let statusBoxClasses = "rounded-[2rem] p-6 text-white flex flex-col justify-center items-center gap-4 relative overflow-hidden shrink-0 shadow-lg transition-all duration-300 ";
   let statusBoxContent;
 
-  if (todayCompleted >= dailyGoal) {
-    statusBoxClasses += "bg-emerald-500";
-    statusBoxContent = <h4 className="text-2xl font-bold z-10 text-center">{randomTexts.safe}</h4>;
-  } else if (!isYesterdayBeforeStart && yesterdayCompleted < dailyGoal) {
+  const cornerFraction = (
+    <div className="absolute top-4 left-4 bg-white/20 backdrop-blur-sm px-3 py-1 rounded-lg font-mono font-bold text-sm" dir="ltr">
+      {total2Days}/{twoDayGoal}
+    </div>
+  );
+
+  if (total2Days < dailyGoal) {
     statusBoxClasses += "bg-yellow-500 text-yellow-950";
-    statusBoxContent = <h4 className="text-2xl font-bold z-10 text-center">{randomTexts.threatened}</h4>;
-  } else {
+    statusBoxContent = (
+      <>
+        {cornerFraction}
+        <h4 className="text-2xl font-bold z-10 text-center">{randomTexts.threatened}</h4>
+      </>
+    );
+  } else if (total2Days >= dailyGoal && total2Days < twoDayGoal) {
     statusBoxClasses += "bg-gradient-to-br from-blue-500 to-blue-600";
-    statusBoxContent = <h4 className="text-xl font-bold z-10 text-center">{randomTexts.default}</h4>;
-  }
-
-  let punishmentBoxClasses = "rounded-[2rem] p-6 text-white flex flex-col justify-center items-center gap-4 relative overflow-hidden shrink-0 shadow-lg transition-all duration-300 ";
-  let punishmentBoxContent = null;
-
-  if (state.pendingPunishment) {
-    if (punishmentUIState === 'resolving_failed') {
-      punishmentBoxClasses += "bg-slate-900";
-      punishmentBoxContent = (
-        <div className="relative z-10 flex flex-col items-center w-full gap-4">
-          <h4 className="text-xl font-bold text-rose-500 text-center">{randomTexts.punishmentFailed}</h4>
-          <button onClick={handleUndoPunishment} className="mt-2 bg-slate-800 text-white px-6 py-2 rounded-xl font-bold text-sm hover:bg-slate-700 transition-colors flex items-center gap-2">
-             <RotateCcw className="w-4 h-4" /> تراجع
-          </button>
-        </div>
-      );
-    } else if (punishmentUIState === 'resolving_done') {
-      punishmentBoxClasses += "bg-emerald-600";
-      punishmentBoxContent = (
-        <div className="relative z-10 flex flex-col items-center w-full gap-4">
-          <h4 className="text-xl font-bold text-white text-center">{randomTexts.punishmentDone}</h4>
-          <button onClick={handleUndoPunishment} className="mt-2 bg-emerald-800 text-white px-6 py-2 rounded-xl font-bold text-sm hover:bg-emerald-700 transition-colors flex items-center gap-2">
-             <RotateCcw className="w-4 h-4" /> تراجع
-          </button>
-        </div>
-      );
-    } else {
-      punishmentBoxClasses += "bg-rose-600";
-      punishmentBoxContent = (
-        <div className="relative z-10 flex flex-col items-center w-full gap-4">
-          <h4 className="text-xl font-bold text-center">{randomTexts.punishmentTitle}</h4>
-          <div className="flex gap-3 w-full mt-2">
-            <button onClick={() => handlePunishmentAction(true)} className="flex-1 bg-white text-rose-600 py-3 rounded-xl font-bold text-sm shadow-sm hover:bg-rose-50 transition-colors">أتممت العقاب</button>
-            <button onClick={() => handlePunishmentAction(false)} className="flex-1 bg-rose-800 text-white py-3 rounded-xl font-bold text-sm hover:bg-rose-900 transition-colors">لم أتمم</button>
-          </div>
-        </div>
-      );
-    }
+    statusBoxContent = (
+      <>
+        {cornerFraction}
+        <h4 className="text-xl font-bold z-10 text-center">{randomTexts.default}</h4>
+      </>
+    );
+  } else {
+    statusBoxClasses += "bg-emerald-500";
+    statusBoxContent = (
+      <>
+        {cornerFraction}
+        <h4 className="text-2xl font-bold z-10 text-center">{randomTexts.safe}</h4>
+      </>
+    );
   }
 
   const handleReset = () => {
@@ -300,7 +314,8 @@ export default function App() {
       lastLoginDate: today,
       startDate: today,
       dailyGoal: state.dailyGoal || 10,
-      pendingPunishment: false
+      pendingPunishment: false,
+      pendingPunishmentsCount: 0
     });
     setConfirmReset(false);
     setShowSettings(false);
@@ -317,11 +332,21 @@ export default function App() {
   return (
     <div className="flex flex-col min-h-screen w-full bg-[#F8FAFC] font-sans text-slate-800" dir="rtl">
       <header className="flex items-center justify-between px-4 md:px-8 py-4 bg-white border-b border-slate-200 shrink-0 sticky top-0 z-50">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-[#059669] rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-200">
-            <BookOpen className="w-6 h-6 text-white" />
+        <div className="flex items-center gap-4 md:gap-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 md:w-12 md:h-12 bg-[#059669] rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-200 shrink-0">
+              <BookOpen className="w-5 h-5 md:w-6 md:h-6 text-white" />
+            </div>
+            <button
+              onClick={() => setShowStats(true)}
+              className="flex items-center gap-2 bg-yellow-50 hover:bg-yellow-100 transition-colors px-3 py-1.5 md:px-4 md:py-2 rounded-xl border border-yellow-200 text-yellow-700 shadow-sm"
+            >
+              <Trophy className="w-4 h-4 md:w-5 md:h-5 text-yellow-500" />
+              <span className="font-bold font-mono text-sm md:text-base">{currentScore}</span>
+            </button>
           </div>
-          <div className="flex gap-2">
+          
+          <div className="flex gap-2 hidden md:flex">
             <button 
               onClick={() => {
                 setTempGoal(state.dailyGoal || 10);
@@ -341,13 +366,27 @@ export default function App() {
         </div>
         
         <div className="flex gap-2 md:gap-6 items-center">
-          <div className="flex flex-col items-center bg-slate-50 px-3 py-1.5 md:px-4 md:py-2 rounded-xl border border-slate-200">
-            <span className="text-[10px] md:text-xs font-bold text-slate-400">عدد الختمات</span>
-            <span className="text-lg md:text-2xl font-black text-[#059669]">{state.khatmatCount}</span>
-          </div>
           <div className="flex flex-col items-center justify-center bg-red-50 px-3 py-1.5 md:px-4 md:py-2 rounded-xl border border-red-100 min-w-[90px] md:min-w-[120px]">
             <span className="text-[10px] md:text-xs font-bold text-red-400">منتصف الليل</span>
             <span className="text-lg md:text-2xl font-black text-red-600 font-mono" dir="ltr">{timeToMidnight}</span>
+          </div>
+
+          <div className="flex md:hidden gap-1">
+            <button 
+              onClick={() => {
+                setTempGoal(state.dailyGoal || 10);
+                setShowSettings(true);
+              }} 
+              className="w-8 h-8 bg-slate-100 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+            <button 
+              onClick={() => setShowInstructions(true)} 
+              className="w-8 h-8 bg-blue-50 rounded-xl flex items-center justify-center text-blue-500 hover:bg-blue-100 transition-colors"
+            >
+              <HelpCircle className="w-4 h-4" />
+            </button>
           </div>
         </div>
       </header>
@@ -363,11 +402,50 @@ export default function App() {
         <aside className="flex-1 flex flex-col gap-6 pb-6 pr-1">
           <CalendarTracker history={state.history} pendingPunishment={state.pendingPunishment} />
           
-          {state.pendingPunishment && (
-            <div className={punishmentBoxClasses}>
-              {punishmentBoxContent}
-            </div>
-          )}
+          {Array.from({ length: state.pendingPunishmentsCount || (state.pendingPunishment ? 1 : 0) }).map((_, idx) => {
+            let classes = "rounded-[2rem] p-6 text-white flex flex-col justify-center items-center gap-4 relative overflow-hidden shrink-0 shadow-lg transition-all duration-300 ";
+            const uiState = punishmentUIStates[idx] || 'idle';
+            let content;
+
+            if (uiState === 'resolving_failed') {
+              classes += "bg-slate-900";
+              content = (
+                <div className="relative z-10 flex flex-col items-center w-full gap-4">
+                  <h4 className="text-xl font-bold text-rose-500 text-center">{randomTexts.punishmentFailed}</h4>
+                  <button onClick={() => handleUndoPunishment(idx)} className="mt-2 bg-slate-800 text-white px-6 py-2 rounded-xl font-bold text-sm hover:bg-slate-700 transition-colors flex items-center gap-2">
+                    <RotateCcw className="w-4 h-4" /> تراجع
+                  </button>
+                </div>
+              );
+            } else if (uiState === 'resolving_done') {
+              classes += "bg-emerald-600";
+              content = (
+                <div className="relative z-10 flex flex-col items-center w-full gap-4">
+                  <h4 className="text-xl font-bold text-white text-center">{randomTexts.punishmentDone}</h4>
+                  <button onClick={() => handleUndoPunishment(idx)} className="mt-2 bg-emerald-800 text-white px-6 py-2 rounded-xl font-bold text-sm hover:bg-emerald-700 transition-colors flex items-center gap-2">
+                    <RotateCcw className="w-4 h-4" /> تراجع
+                  </button>
+                </div>
+              );
+            } else {
+              classes += "bg-rose-600";
+              content = (
+                <div className="relative z-10 flex flex-col items-center w-full gap-4">
+                  <h4 className="text-xl font-bold text-center">{randomTexts.punishmentTitle}</h4>
+                  <div className="flex gap-3 w-full mt-2">
+                    <button onClick={() => handlePunishmentAction(idx, true)} className="flex-1 bg-white text-rose-600 py-3 rounded-xl font-bold text-sm shadow-sm hover:bg-rose-50 transition-colors">أتممت العقاب</button>
+                    <button onClick={() => handlePunishmentAction(idx, false)} className="flex-1 bg-rose-800 text-white py-3 rounded-xl font-bold text-sm hover:bg-rose-900 transition-colors">لم أتمم</button>
+                  </div>
+                </div>
+              );
+            }
+
+            return (
+              <div key={`punishment-${idx}`} className={classes}>
+                {content}
+              </div>
+            );
+          })}
 
           <div className={statusBoxClasses}>
             {statusBoxContent}
@@ -466,6 +544,14 @@ export default function App() {
           <CheckCircle className="w-5 h-5" />
           <span className="font-bold text-sm">{toastMessage}</span>
         </div>
+      )}
+
+      {showStats && (
+        <StatsModal 
+          history={state.history}
+          dailyGoal={dailyGoal}
+          onClose={() => setShowStats(false)}
+        />
       )}
 
       {showInstructions && (

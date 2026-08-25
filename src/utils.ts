@@ -60,6 +60,7 @@ export function processMissedDays(currentState: AppState) {
         dayStats.punished2Days = true;
         activePunishments.heavyPunishments.push(currDate);
         newState.pendingPunishment = true;
+        newState.pendingPunishmentsCount = (newState.pendingPunishmentsCount || 0) + 1;
       }
     }
     

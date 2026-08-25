@@ -13,5 +13,6 @@ export interface AppState {
   lastLoginDate: string;
   startDate?: string;
   pendingPunishment?: boolean;
+  pendingPunishmentsCount?: number;
   dailyGoal?: number;
 }
