@@ -617,6 +617,15 @@ export default function App() {
                 <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-12 bg-[#ef4444] shadow-sm"></div>
                 {/* Knot */}
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-[#dc2626] rotate-45 rounded-xl shadow-lg border-[3px] border-[#ef4444]"></div>
+                
+                {/* Gift Tag */}
+                <div className="absolute bottom-4 right-4 bg-[#fdf8e6] px-3 py-2 rounded-lg shadow-xl border-2 border-[#eab308] rotate-[-8deg] z-10 w-[140px] pointer-events-none">
+                  <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-[#fdf8e6] rounded-full border-2 border-[#eab308] flex items-center justify-center">
+                    <div className="w-1 h-1 bg-red-500 rounded-full"></div>
+                  </div>
+                  <p className="text-sm font-black text-[#b37012] mb-1.5 leading-tight text-center mt-1">هدية لأنك أشطر شطور 🌟</p>
+                  <p className="text-[10px] text-[#8c5508] font-bold border-t border-[#eab308]/40 pt-1.5 text-center">من: لجنة العقوبات</p>
+                </div>
               </div>
             ) : (
               <div key={`opened-gift-${idx}`} className="bg-[#fdf3c8] border-[6px] border-[#e5a022] rounded-xl p-5 shadow-2xl relative flex flex-col items-center justify-center text-center transform -rotate-2 hover:rotate-0 transition-transform cursor-default h-48 overflow-hidden shrink-0">
