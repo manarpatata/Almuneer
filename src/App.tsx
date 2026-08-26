@@ -267,7 +267,10 @@ export default function App() {
     "استخدمتِ كرت الإعفاء من العقاب 🎫"
   ], []);
 
-  const handleClaimGift = () => {
+  const handleClaimGift = (idx: number) => {
+    if (openedGiftsBoxes[idx]) return;
+    
+    setOpenedGiftsBoxes(prev => ({ ...prev, [idx]: true }));
     const todayStr = getTodayDateString();
     setState(prev => {
       const currentClaimedToday = prev.claimedGiftsByDate?.[todayStr] || 0;
@@ -509,6 +512,29 @@ export default function App() {
     return Math.max(claimedToday, legacyClaimedToday);
   }, [state.claimedGiftsByDate, state.lastClaimedGiftDate, todayStr]);
 
+  const totalGiftsToday = availableGiftsCount + openedGiftsToday;
+
+  const [openedGiftsBoxes, setOpenedGiftsBoxes] = useState<Record<number, boolean>>({});
+
+  useEffect(() => {
+    setOpenedGiftsBoxes(prev => {
+      const currentOpenedCount = Object.values(prev).filter(Boolean).length;
+      if (currentOpenedCount === openedGiftsToday) {
+        return prev;
+      }
+      
+      const newState: Record<number, boolean> = {};
+      for (let i = 0; i < totalGiftsToday; i++) {
+        if (i >= availableGiftsCount) {
+          newState[i] = true;
+        } else {
+          newState[i] = false;
+        }
+      }
+      return newState;
+    });
+  }, [availableGiftsCount, openedGiftsToday, totalGiftsToday]);
+
   return (
     <div className="flex flex-col min-h-screen w-full bg-gradient-to-br from-slate-50 to-slate-100/80 font-sans text-slate-800" dir="rtl">
       <header className="flex items-center justify-between px-4 md:px-8 py-4 bg-white/80 backdrop-blur-md border-b border-slate-200 shrink-0 sticky top-0 z-50">
@@ -582,31 +608,31 @@ export default function App() {
         <aside className="flex-1 flex flex-col gap-6 pb-6 pr-1">
           <CalendarTracker history={state.history} dailyGoal={dailyGoal} currentScore={currentScore} pendingPunishment={state.pendingPunishment} pendingPunishmentsCount={state.pendingPunishmentsCount} />
           
-          {Array.from({ length: availableGiftsCount }).map((_, idx) => (
-            <div key={`gift-${idx}`} onClick={handleClaimGift} className="relative w-full h-48 bg-[#facc15] rounded-xl overflow-hidden shadow-2xl cursor-pointer hover:scale-[1.03] active:scale-95 transition-all border-4 border-[#eab308] shrink-0">
-              {/* Vertical Ribbon */}
-              <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-12 bg-[#ef4444] shadow-sm"></div>
-              {/* Horizontal Ribbon */}
-              <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-12 bg-[#ef4444] shadow-sm"></div>
-              {/* Knot */}
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-[#dc2626] rotate-45 rounded-xl shadow-lg border-[3px] border-[#ef4444]"></div>
-            </div>
-          ))}
-
-          {Array.from({ length: openedGiftsToday }).map((_, idx) => (
-            <div key={`opened-gift-${idx}`} className="bg-[#fdf3c8] border-[6px] border-[#e5a022] rounded-xl p-5 shadow-2xl relative flex flex-col items-center justify-center text-center transform -rotate-2 hover:rotate-0 transition-transform cursor-default h-48 overflow-hidden shrink-0">
-              <div className="absolute inset-1 border-2 border-dashed border-[#e5a022] rounded-lg pointer-events-none"></div>
-              <div className="w-12 h-12 bg-[#e5a022] text-white rounded-full flex items-center justify-center mb-3 shadow-inner z-10">
-                <Gift className="w-6 h-6" />
+          {Array.from({ length: totalGiftsToday }).map((_, idx) => (
+            !openedGiftsBoxes[idx] ? (
+              <div key={`gift-${idx}`} onClick={() => handleClaimGift(idx)} className="relative w-full h-48 bg-[#facc15] rounded-xl overflow-hidden shadow-2xl cursor-pointer hover:scale-[1.03] active:scale-95 transition-all border-4 border-[#eab308] shrink-0">
+                {/* Vertical Ribbon */}
+                <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-12 bg-[#ef4444] shadow-sm"></div>
+                {/* Horizontal Ribbon */}
+                <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-12 bg-[#ef4444] shadow-sm"></div>
+                {/* Knot */}
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-[#dc2626] rotate-45 rounded-xl shadow-lg border-[3px] border-[#ef4444]"></div>
               </div>
-              <h3 className="font-black text-[#b37012] text-2xl uppercase tracking-widest mb-1 z-10">كرت الإعفاء</h3>
-              <p className="text-[#8c5508] font-bold text-sm z-10 leading-relaxed max-w-[85%]">تعفيك من أي عقاب متى ما احتجتيه</p>
-              
-              <div className="absolute -bottom-2 right-1 w-32 h-32 rounded-full border-[6px] border-double border-red-600 flex flex-col items-center justify-center rotate-[-25deg] opacity-80 z-20">
-                <Scale className="w-10 h-10 text-red-600 mb-1" strokeWidth={2.5} />
-                <span className="text-[12px] font-black text-red-600 leading-tight text-center">لجنة<br/>العقوبات</span>
+            ) : (
+              <div key={`opened-gift-${idx}`} className="bg-[#fdf3c8] border-[6px] border-[#e5a022] rounded-xl p-5 shadow-2xl relative flex flex-col items-center justify-center text-center transform -rotate-2 hover:rotate-0 transition-transform cursor-default h-48 overflow-hidden shrink-0">
+                <div className="absolute inset-1 border-2 border-dashed border-[#e5a022] rounded-lg pointer-events-none"></div>
+                <div className="w-12 h-12 bg-[#e5a022] text-white rounded-full flex items-center justify-center mb-3 shadow-inner z-10">
+                  <Gift className="w-6 h-6" />
+                </div>
+                <h3 className="font-black text-[#b37012] text-2xl uppercase tracking-widest mb-1 z-10">كرت الإعفاء</h3>
+                <p className="text-[#8c5508] font-bold text-sm z-10 leading-relaxed max-w-[85%]">تعفيك من أي عقاب متى ما احتجتيه</p>
+                
+                <div className="absolute -bottom-2 right-1 w-32 h-32 rounded-full border-[6px] border-double border-red-600 flex flex-col items-center justify-center rotate-[-25deg] opacity-80 z-20">
+                  <Scale className="w-10 h-10 text-red-600 mb-1" strokeWidth={2.5} />
+                  <span className="text-[12px] font-black text-red-600 leading-tight text-center">لجنة<br/>العقوبات</span>
+                </div>
               </div>
-            </div>
+            )
           ))}
 
           {Array.from({ length: state.pendingPunishmentsCount || (state.pendingPunishment ? 1 : 0) }).map((_, idx) => {
