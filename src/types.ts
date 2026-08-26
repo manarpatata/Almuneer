@@ -21,4 +21,6 @@ export interface AppState {
   immunityCards?: number;
   unclaimedGifts?: number;
   earnedGiftDates?: string[];
+  lastClaimedGiftDate?: string;
+  claimedGiftsByDate?: Record<string, number>;
 }

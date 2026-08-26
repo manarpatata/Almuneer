@@ -11,7 +11,8 @@ import { LessonsList } from './components/LessonsList';
 import { CalendarTracker } from './components/CalendarTracker';
 import { WaterGunOverlay } from './components/WaterGunOverlay';
 import { StatsModal } from './components/StatsModal';
-import { BookOpen, Settings, X, AlertTriangle, RotateCcw, CheckCircle, HelpCircle, Trophy, Gift } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { BookOpen, Settings, X, AlertTriangle, RotateCcw, CheckCircle, HelpCircle, Trophy, Gift, Scale, Skull } from 'lucide-react';
 
 export default function App() {
   const [state, setState] = useState<AppState>(() => {
@@ -46,6 +47,7 @@ export default function App() {
   const [showInstructions, setShowInstructions] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [confirmGenerate, setConfirmGenerate] = useState(false);
   const [tempGoal, setTempGoal] = useState(state.dailyGoal || 10);
   const [toastMessage, setToastMessage] = useState("");
   
@@ -166,7 +168,8 @@ export default function App() {
     });
   };
 
-  const [punishmentUIStates, setPunishmentUIStates] = useState<Record<number, 'idle' | 'resolving_done' | 'resolving_failed'>>({});
+  const [punishmentUIStates, setPunishmentUIStates] = useState<Record<number, 'idle' | 'resolving_done' | 'resolving_failed' | 'resolving_card'>>({});
+  const [openedPunishmentBoxes, setOpenedPunishmentBoxes] = useState<Record<number, boolean>>({});
   const punishmentTimeoutRefs = useRef<Record<number, NodeJS.Timeout>>({});
 
   const PUNISHMENT_TITLES = [
@@ -265,17 +268,48 @@ export default function App() {
   ], []);
 
   const handleClaimGift = () => {
-    setState(prev => ({
-      ...prev,
-      unclaimedGifts: Math.max(0, (prev.unclaimedGifts || 0) - 1),
-      immunityCards: (prev.immunityCards || 0) + 1
-    }));
-    setToastMessage("حصلتِ على كرت إعفاء من العقاب! 🎫");
+    const todayStr = getTodayDateString();
+    setState(prev => {
+      const currentClaimedToday = prev.claimedGiftsByDate?.[todayStr] || 0;
+      return {
+        ...prev,
+        unclaimedGifts: Math.max(0, (prev.unclaimedGifts || 0) - 1),
+        immunityCards: (prev.immunityCards || 0) + 1,
+        lastClaimedGiftDate: todayStr,
+        claimedGiftsByDate: {
+          ...(prev.claimedGiftsByDate || {}),
+          [todayStr]: currentClaimedToday + 1
+        }
+      };
+    });
+    setToastMessage("تم إضافة كرت الإعفاء لرصيدك! 🎫");
     setTimeout(() => setToastMessage(""), 3000);
+  };
+
+  const shiftRecordKeys = <T,>(prev: Record<number, T>, indexToRemove: number): Record<number, T> => {
+    const next: Record<number, T> = {};
+    for (const keyStr in prev) {
+      const key = parseInt(keyStr, 10);
+      if (key < indexToRemove) {
+        next[key] = prev[key];
+      } else if (key > indexToRemove) {
+        next[key - 1] = prev[key];
+      }
+    }
+    return next;
+  };
+
+  const handleOpenPunishmentBox = (index: number) => {
+    setOpenedPunishmentBoxes(prev => ({ ...prev, [index]: true }));
   };
 
   const handleUseCardAction = (index: number) => {
     if ((state.immunityCards || 0) <= 0) return;
+    
+    setState(prev => ({
+      ...prev,
+      immunityCards: Math.max(0, (prev.immunityCards || 0) - 1)
+    }));
     
     setPunishmentUIStates(prev => ({ ...prev, [index]: 'resolving_card' }));
     if (punishmentTimeoutRefs.current[index]) clearTimeout(punishmentTimeoutRefs.current[index]);
@@ -288,7 +322,6 @@ export default function App() {
           ...prev,
           pendingPunishment: newCount > 0,
           pendingPunishmentsCount: newCount,
-          immunityCards: Math.max(0, (prev.immunityCards || 0) - 1),
           history: {
             ...prev.history,
             [today]: {
@@ -298,6 +331,8 @@ export default function App() {
           }
         };
       });
+      setPunishmentUIStates(prev => shiftRecordKeys(prev, index));
+      setOpenedPunishmentBoxes(prev => shiftRecordKeys(prev, index));
     }, 3000);
   };
 
@@ -330,7 +365,8 @@ export default function App() {
           }
         };
       });
-      setPunishmentUIStates(prev => ({ ...prev, [index]: 'idle' }));
+      setPunishmentUIStates(prev => shiftRecordKeys(prev, index));
+      setOpenedPunishmentBoxes(prev => shiftRecordKeys(prev, index));
     }, 4000);
   };
 
@@ -339,7 +375,7 @@ export default function App() {
     setPunishmentUIStates(prev => ({ ...prev, [index]: 'idle' }));
   };
 
-  const handleGenerateTestData = () => {
+  const executeGenerateTestData = () => {
     const newHistory: Record<string, any> = {};
     const todayStr = getTodayDateString();
     let currDate = addDays(todayStr, -7);
@@ -451,6 +487,28 @@ export default function App() {
     setShowSettings(false);
   };
 
+  const todayStr = getTodayDateString();
+  const availableGiftsCount = useMemo(() => {
+    const earnedDates = state.earnedGiftDates || [];
+    const earnedBeforeToday = earnedDates.filter(d => d < todayStr).length;
+    const totalClaimed = Math.max(0, earnedDates.length - (state.unclaimedGifts || 0));
+    
+    let legacyGifts = 0;
+    if (earnedDates.length === 0 && (state.unclaimedGifts || 0) > 0) {
+      legacyGifts = state.unclaimedGifts || 0;
+    } else if (state.unclaimedGifts !== undefined && state.unclaimedGifts > earnedDates.length) {
+      legacyGifts = state.unclaimedGifts - earnedDates.length;
+    }
+    
+    return Math.max(0, earnedBeforeToday - totalClaimed) + legacyGifts;
+  }, [state.earnedGiftDates, state.unclaimedGifts, todayStr]);
+
+  const openedGiftsToday = useMemo(() => {
+    const claimedToday = state.claimedGiftsByDate?.[todayStr] || 0;
+    const legacyClaimedToday = (state.lastClaimedGiftDate === todayStr && !state.claimedGiftsByDate) ? 1 : 0;
+    return Math.max(claimedToday, legacyClaimedToday);
+  }, [state.claimedGiftsByDate, state.lastClaimedGiftDate, todayStr]);
+
   return (
     <div className="flex flex-col min-h-screen w-full bg-gradient-to-br from-slate-50 to-slate-100/80 font-sans text-slate-800" dir="rtl">
       <header className="flex items-center justify-between px-4 md:px-8 py-4 bg-white/80 backdrop-blur-md border-b border-slate-200 shrink-0 sticky top-0 z-50">
@@ -524,27 +582,63 @@ export default function App() {
         <aside className="flex-1 flex flex-col gap-6 pb-6 pr-1">
           <CalendarTracker history={state.history} dailyGoal={dailyGoal} currentScore={currentScore} pendingPunishment={state.pendingPunishment} pendingPunishmentsCount={state.pendingPunishmentsCount} />
           
-          {(state.unclaimedGifts || 0) > 0 && (
-            <div onClick={handleClaimGift} className="bg-gradient-to-r from-yellow-50 to-yellow-100 border-2 border-yellow-300 rounded-[2rem] p-5 flex items-center justify-between shadow-lg shadow-yellow-200/50 cursor-pointer hover:scale-[1.02] transition-transform">
-               <div className="flex items-center gap-4">
-                 <div className="text-4xl animate-bounce">🎁</div>
-                 <div>
-                   <h3 className="font-bold text-yellow-800 text-lg">هدية جديدة بانتظارك!</h3>
-                   <p className="text-yellow-700 text-sm font-medium">لإتمامك ٢٠ درس أو أكثر ليومين متتاليين</p>
-                 </div>
-               </div>
-               <button className="bg-yellow-500 text-white font-bold px-4 py-2 rounded-xl shadow-sm hover:bg-yellow-600 transition-colors shrink-0">
-                 افتح الهدية
-               </button>
+          {Array.from({ length: availableGiftsCount }).map((_, idx) => (
+            <div key={`gift-${idx}`} onClick={handleClaimGift} className="relative w-full h-48 bg-[#facc15] rounded-xl overflow-hidden shadow-2xl cursor-pointer hover:scale-[1.03] active:scale-95 transition-all border-4 border-[#eab308] shrink-0">
+              {/* Vertical Ribbon */}
+              <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-12 bg-[#ef4444] shadow-sm"></div>
+              {/* Horizontal Ribbon */}
+              <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-12 bg-[#ef4444] shadow-sm"></div>
+              {/* Knot */}
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-[#dc2626] rotate-45 rounded-xl shadow-lg border-[3px] border-[#ef4444]"></div>
             </div>
-          )}
+          ))}
+
+          {Array.from({ length: openedGiftsToday }).map((_, idx) => (
+            <div key={`opened-gift-${idx}`} className="bg-[#fdf3c8] border-[6px] border-[#e5a022] rounded-xl p-5 shadow-2xl relative flex flex-col items-center justify-center text-center transform -rotate-2 hover:rotate-0 transition-transform cursor-default h-48 overflow-hidden shrink-0">
+              <div className="absolute inset-1 border-2 border-dashed border-[#e5a022] rounded-lg pointer-events-none"></div>
+              <div className="w-12 h-12 bg-[#e5a022] text-white rounded-full flex items-center justify-center mb-3 shadow-inner z-10">
+                <Gift className="w-6 h-6" />
+              </div>
+              <h3 className="font-black text-[#b37012] text-2xl uppercase tracking-widest mb-1 z-10">كرت الإعفاء</h3>
+              <p className="text-[#8c5508] font-bold text-sm z-10 leading-relaxed max-w-[85%]">تعفيك من أي عقاب متى ما احتجتيه</p>
+              
+              <div className="absolute -bottom-2 right-1 w-32 h-32 rounded-full border-[6px] border-double border-red-600 flex flex-col items-center justify-center rotate-[-25deg] opacity-80 z-20">
+                <Scale className="w-10 h-10 text-red-600 mb-1" strokeWidth={2.5} />
+                <span className="text-[12px] font-black text-red-600 leading-tight text-center">لجنة<br/>العقوبات</span>
+              </div>
+            </div>
+          ))}
 
           {Array.from({ length: state.pendingPunishmentsCount || (state.pendingPunishment ? 1 : 0) }).map((_, idx) => {
             let classes = "rounded-[2rem] p-6 text-white flex flex-col justify-center items-center gap-4 relative overflow-hidden shrink-0 shadow-lg transition-all duration-300 ";
             const uiState = punishmentUIStates[idx] || 'idle';
             let content;
 
-            if (uiState === 'resolving_failed') {
+            if (!openedPunishmentBoxes[idx]) {
+              classes = "rounded-xl overflow-hidden shadow-2xl relative transition-all duration-300 cursor-pointer hover:scale-[1.02] active:scale-95 bg-[#c19a6b] h-56 border-[4px] border-[#a68053] shrink-0";
+              content = (
+                <div onClick={() => handleOpenPunishmentBox(idx)} className="w-full h-full flex flex-col items-center justify-center relative">
+                  {/* Cardboard Box Flaps / Tape */}
+                  <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-16 bg-[#a68053] opacity-80 border-l border-r border-[#8c6b44]"></div>
+                  <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-16 bg-[#a68053] opacity-80 border-t border-b border-[#8c6b44]"></div>
+                  
+                  {/* Skull and Blood */}
+                  <div className="relative z-10 flex flex-col items-center justify-center mt-4">
+                    <Skull className="w-16 h-16 text-[#4a3424] drop-shadow-xl opacity-90" />
+                    {/* Blood splatters */}
+                    <div className="absolute -top-1 -right-3 w-3 h-3 bg-red-700 rounded-full blur-[1px]"></div>
+                    <div className="absolute top-3 -left-2 w-2 h-4 bg-red-800 rounded-full rotate-45 blur-[1px]"></div>
+                    <div className="absolute bottom-1 -right-1 w-5 h-2 bg-red-700 rounded-full -rotate-12 blur-[1px]"></div>
+                  </div>
+
+                  {/* Seal */}
+                  <div className="absolute bottom-2 right-2 w-24 h-24 rounded-full border-[5px] border-double border-red-700 flex flex-col items-center justify-center rotate-[-20deg] opacity-90 z-20">
+                    <Scale className="w-6 h-6 text-red-700 mb-0.5" strokeWidth={2.5} />
+                    <span className="text-[9px] font-black text-red-700 leading-tight text-center">لجنة<br/>العقوبات</span>
+                  </div>
+                </div>
+              );
+            } else if (uiState === 'resolving_failed') {
               classes += "bg-gradient-to-br from-slate-800 to-slate-900 shadow-slate-300/50";
               content = (
                 <div className="relative z-10 flex flex-col items-center w-full gap-4">
@@ -678,14 +772,28 @@ export default function App() {
                   تصفير الإنجازات
                 </button>
                 <button 
-                  onClick={handleGenerateTestData}
-                  className="mt-2 w-full flex items-center justify-center gap-2 bg-indigo-50 text-indigo-600 py-3 rounded-xl font-bold text-sm shadow-sm hover:bg-indigo-100 transition-colors"
+                  onClick={() => setConfirmGenerate(true)}
+                  className="mt-2 w-full flex items-center justify-center gap-2 bg-rose-50 text-rose-600 py-3 rounded-xl font-bold text-sm shadow-sm hover:bg-rose-100 transition-colors"
                 >
-                  <BookOpen className="w-4 h-4" />
+                  <AlertTriangle className="w-4 h-4" />
                   توليد بيانات اختبار عشوائية (أسبوع)
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {confirmGenerate && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white p-5 rounded-2xl shadow-2xl z-[100] w-[90%] max-w-sm flex flex-col gap-4">
+          <div className="flex items-center gap-3 text-rose-500 justify-center">
+            <AlertTriangle className="w-6 h-6" />
+            <h3 className="font-bold text-lg">تحذير خطير</h3>
+          </div>
+          <p className="text-center font-bold text-sm text-slate-300">سيتم استبدال جميع بياناتك الحالية ببيانات عشوائية، هل أنت متأكد؟</p>
+          <div className="flex gap-3 w-full mt-2">
+            <button onClick={() => { executeGenerateTestData(); setConfirmGenerate(false); }} className="flex-1 bg-rose-600 hover:bg-rose-700 py-2.5 rounded-xl text-sm font-bold transition-colors">نعم، متأكد</button>
+            <button onClick={() => setConfirmGenerate(false)} className="flex-1 bg-slate-700 hover:bg-slate-600 py-2.5 rounded-xl text-sm font-bold transition-colors">إلغاء</button>
           </div>
         </div>
       )}
@@ -700,12 +808,21 @@ export default function App() {
         </div>
       )}
 
+      <AnimatePresence>
       {toastMessage && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 bg-emerald-500 text-white px-6 py-3 rounded-full shadow-lg z-[100] flex items-center gap-2">
-          <CheckCircle className="w-5 h-5" />
-          <span className="font-bold text-sm">{toastMessage}</span>
-        </div>
+        <motion.div 
+          initial={{ opacity: 0, y: -50, scale: 0.9 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -20, scale: 0.9 }}
+          className="fixed top-6 left-1/2 -translate-x-1/2 bg-white text-slate-800 px-6 py-4 rounded-2xl shadow-2xl z-[100] flex items-center gap-3 border border-slate-100 min-w-max"
+        >
+          <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+            <CheckCircle className="w-5 h-5 text-emerald-600" />
+          </div>
+          <span className="font-bold text-sm whitespace-nowrap">{toastMessage}</span>
+        </motion.div>
       )}
+      </AnimatePresence>
 
       {showStats && (
         <StatsModal 

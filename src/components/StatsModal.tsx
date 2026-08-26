@@ -42,10 +42,10 @@ export function StatsModal({ history, dailyGoal, khatmatCount, immunityCards, on
     }
 
     // Rewards
-    if (day.lessonsCompleted >= 20 && day.lessonsCompleted < 28) {
+    if (day.lessonsCompleted >= dailyGoal * 2 && day.lessonsCompleted < 28) {
       superDays++;
       score += 50;
-    } else if (day.lessonsCompleted >= dailyGoal && day.lessonsCompleted < 20) {
+    } else if (day.lessonsCompleted >= dailyGoal && day.lessonsCompleted < dailyGoal * 2) {
       normalDays++;
       score += 10;
     }
@@ -108,7 +108,7 @@ export function StatsModal({ history, dailyGoal, khatmatCount, immunityCards, on
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center text-xl">🎫</div>
                   <div className="flex flex-col">
-                    <span className="font-bold text-yellow-900">كروت الإعفاء من العقاب</span>
+                    <span className="font-bold text-yellow-900">كروت الإعفاء</span>
                     <span className="text-xs font-medium text-yellow-700">رصيدك الحالي من الكروت</span>
                   </div>
                 </div>
@@ -122,7 +122,7 @@ export function StatsModal({ history, dailyGoal, khatmatCount, immunityCards, on
               <div className="flex items-center justify-between p-3 bg-emerald-50/50 rounded-xl">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">🚀</div>
-                  <span className="font-bold text-slate-700 text-sm">أيام خارقة (+٢٠ درس)</span>
+                  <span className="font-bold text-slate-700 text-sm">أيام خارقة (ضعف الهدف)</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="font-bold font-mono text-emerald-600">{superDays}</span>

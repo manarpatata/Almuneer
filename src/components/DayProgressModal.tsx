@@ -11,8 +11,8 @@ const CustomDot = (props: any) => {
   let fill = "#10b981"; // green
   if (payload.expelled) fill = "#1e293b"; // slate-800
   else if (payload.punished) fill = "#ef4444"; // red-500
-  else if (payload.lessons >= 20) fill = "#10b981"; // emerald-500
-  else if (payload.lessons >= 10) fill = "#34d399"; // emerald-400
+  else if (payload.lessons >= (payload.dailyGoal || 10) * 2) fill = "#10b981"; // emerald-500
+  else if (payload.lessons >= (payload.dailyGoal || 10)) fill = "#34d399"; // emerald-400
   else fill = "#f59e0b"; // amber-500
 
   return (
@@ -159,10 +159,10 @@ export function DayProgressModal({ date, stats, history, dailyGoal, currentScore
     } else if (punished) {
       message = PUNISHED_PHRASES[dateHash % PUNISHED_PHRASES.length];
       msgColor = "text-rose-600";
-    } else if (completed >= 20) {
+    } else if (completed >= dailyGoal * 2) {
       message = EXCELLENT_PHRASES[dateHash % EXCELLENT_PHRASES.length];
       msgColor = "text-emerald-600";
-    } else if (completed >= 10) {
+    } else if (completed >= dailyGoal) {
       message = GOOD_PHRASES[dateHash % GOOD_PHRASES.length];
       msgColor = "text-emerald-600";
     } else {
@@ -211,7 +211,8 @@ export function DayProgressModal({ date, stats, history, dailyGoal, currentScore
       name: getDayNameArabic(d).replace('ال', ''),
       lessons: dayStats?.lessonsCompleted || 0,
       punished: dayStats?.punishedDaily || dayStats?.punished2Days,
-      expelled: dayStats?.expelled
+      expelled: dayStats?.expelled,
+      dailyGoal
     };
   }) : [];
 
@@ -250,7 +251,7 @@ export function DayProgressModal({ date, stats, history, dailyGoal, currentScore
                     </span>
                   {expelled ? (
                     <span className="text-4xl" title="طرد تأديبي">🔪</span>
-                  ) : punished || completed < 10 ? (
+                  ) : punished || completed < dailyGoal ? (
                     <span className="text-4xl" title="تحت التهديد">🔫</span>
                   ) : null}
                 </div>
