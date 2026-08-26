@@ -44,12 +44,12 @@ export function WaterGunOverlay({ isVisible, onClose }: { isVisible: boolean; on
             exit={{ scale: 0.9, opacity: 0 }}
             className="bg-white/90 p-8 rounded-3xl shadow-2xl text-center max-w-sm pointer-events-auto border-2 border-blue-200"
           >
-            <div className="w-20 h-20 mx-auto bg-blue-100 rounded-full flex items-center justify-center mb-4">
-              <Droplets className="w-10 h-10 text-blue-500" />
+            <div className="w-20 h-20 mx-auto bg-blue-100 rounded-full flex items-center justify-center mb-4 text-5xl">
+              🔫
             </div>
             <h2 className="text-2xl font-bold text-blue-900 mb-2">رشة ماء! 💦</h2>
             <p className="text-blue-700 mb-6 font-medium text-lg">
-              مر يوم أمس بدون أي إنجاز في المراجعة. لا تدع الكسل يغلبك اليوم!
+              يتم تفتيقك لعدم مذاكرتك بالأمس! لا تدع الكسل يغلبك اليوم!
             </p>
             <button 
               onClick={onClose}
