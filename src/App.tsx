@@ -13,7 +13,7 @@ import { WaterGunOverlay } from './components/WaterGunOverlay';
 import { StatsModal } from './components/StatsModal';
 import { WalletModal } from './components/WalletModal';
 import { motion, AnimatePresence } from 'motion/react';
-import { BookOpen, Settings, X, AlertTriangle, RotateCcw, CheckCircle, HelpCircle, Trophy, Gift, Scale, Skull, Search } from 'lucide-react';
+import { BookOpen, Settings, X, AlertTriangle, RotateCcw, CheckCircle, HelpCircle, Trophy, Gift, Scale, Skull, Search, Shield, Star, Snowflake } from 'lucide-react';
 
 export default function App() {
   const [state, setState] = useState<AppState>(() => {
@@ -520,7 +520,9 @@ export default function App() {
   const totalGiftsToday = availableGiftsCount + openedGiftsToday;
 
   const { currentStreak, freezesAvailable, longestStreak, earnedFollowUpGifts } = useMemo(() => {
-     return calculateStreak(state.history, state.startDate || state.lastLoginDate, todayStr, state.extraStreakFreezes || 0);
+     const historyDates = Object.keys(state.history).sort();
+     const actualStartDate = state.startDate || (historyDates.length > 0 ? historyDates[0] : state.lastLoginDate);
+     return calculateStreak(state.history, actualStartDate, todayStr, state.extraStreakFreezes || 0);
   }, [state.history, state.startDate, state.lastLoginDate, todayStr, state.extraStreakFreezes]);
 
   const availableFollowUpGifts = Math.max(0, earnedFollowUpGifts - (state.claimedFollowUpGifts || 0));
@@ -706,14 +708,14 @@ export default function App() {
               <div key={`opened-gift-${idx}`} className="bg-[#fdf3c8] border-[6px] border-[#e5a022] rounded-xl p-5 shadow-2xl relative flex flex-col items-center justify-center text-center transform -rotate-2 hover:rotate-0 transition-transform cursor-default h-48 overflow-hidden shrink-0">
                 <div className="absolute inset-1 border-2 border-dashed border-[#e5a022] rounded-lg pointer-events-none"></div>
                 <div className="w-12 h-12 bg-[#e5a022] text-white rounded-full flex items-center justify-center mb-3 shadow-inner z-10">
-                  <Gift className="w-6 h-6" />
+                  <Shield className="w-6 h-6" />
                 </div>
                 <h3 className="font-black text-[#b37012] text-2xl uppercase tracking-widest mb-1 z-10">كرت الإعفاء</h3>
                 <p className="text-[#8c5508] font-bold text-sm z-10 leading-relaxed max-w-[85%]">تعفيك من أي عقاب متى ما احتجتيه</p>
                 
-                <div className="absolute -bottom-2 right-1 w-32 h-32 rounded-full border-[6px] border-double border-red-600 flex flex-col items-center justify-center rotate-[-25deg] opacity-80 z-20">
-                  <Scale className="w-10 h-10 text-red-600 mb-1" strokeWidth={2.5} />
-                  <span className="text-[12px] font-black text-red-600 leading-tight text-center">لجنة<br/>العقوبات</span>
+                <div className="absolute -bottom-2 right-2 w-24 h-24 rounded-full border-[5px] border-double border-red-700 flex flex-col items-center justify-center rotate-[-25deg] opacity-80 z-20">
+                  <Scale className="w-6 h-6 text-red-700 mb-0.5" strokeWidth={2.5} />
+                  <span className="text-[10px] font-black text-red-700 leading-tight text-center">لجنة<br/>العقوبات</span>
                 </div>
               </div>
             )
@@ -739,7 +741,7 @@ export default function App() {
               <div key={`opened-fu-gift-${idx}`} className="bg-indigo-50 border-[6px] border-indigo-400 rounded-xl p-5 shadow-2xl relative flex flex-col items-center justify-center text-center transform -rotate-2 hover:rotate-0 transition-transform cursor-default h-48 overflow-hidden shrink-0">
                 <div className="absolute inset-1 border-2 border-dashed border-indigo-300 rounded-lg pointer-events-none"></div>
                 <div className="w-12 h-12 bg-indigo-500 text-white rounded-full flex items-center justify-center mb-3 shadow-inner z-10">
-                  <span className="text-2xl">{outcome === 'points' ? '🌟' : '🧊'}</span>
+                  {outcome === 'points' ? <Star className="w-6 h-6 fill-current" /> : <Snowflake className="w-6 h-6" />}
                 </div>
                 <h3 className="font-black text-indigo-800 text-xl uppercase tracking-widest mb-1 z-10">
                   {outcome === 'points' ? 'ربحت 300 نقطة!' : 'استعادة ستريك'}
@@ -750,9 +752,9 @@ export default function App() {
                   </p>
                 )}
                 
-                <div className="absolute -bottom-2 right-1 w-32 h-32 rounded-full border-[6px] border-double border-indigo-600 flex flex-col items-center justify-center rotate-[-25deg] opacity-80 z-20">
-                  <div className="w-10 h-10 text-indigo-600 mb-1 flex items-center justify-center font-bold text-4xl"><Search className="w-8 h-8 text-indigo-600" strokeWidth={2.5} /></div>
-                  <span className="text-[12px] font-black text-indigo-600 leading-tight text-center">لجنة<br/>المتابعة</span>
+                <div className="absolute -bottom-2 right-2 w-24 h-24 rounded-full border-[5px] border-double border-indigo-600 flex flex-col items-center justify-center rotate-[-25deg] opacity-80 z-20">
+                  <div className="w-6 h-6 text-indigo-600 mb-0.5 flex items-center justify-center font-bold text-xl"><Search className="w-5 h-5 text-indigo-600" strokeWidth={2.5} /></div>
+                  <span className="text-[10px] font-black text-indigo-600 leading-tight text-center">لجنة<br/>المتابعة</span>
                 </div>
               </div>
             );
@@ -1041,7 +1043,7 @@ export default function App() {
               <div className="flex gap-4">
                 <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center font-bold shrink-0">٢</div>
                 <div>
-                  <h3 className="font-bold text-base mb-1">منطقة التهديد والرش بالماء</h3>
+                  <h3 className="font-bold text-base mb-1">منطقة التهديد</h3>
                   <p>إذا لم تنجزي الحد الأدنى في يوم ما، ستكونين مهددة بالعقاب في اليوم التالي.</p>
                   <p className="mt-1 text-blue-600 font-bold">🔫 التفتيق: إذا لم تتم أي درس في يوم ما (صفر درس) ستعاقب!</p>
                 </div>
@@ -1051,28 +1053,25 @@ export default function App() {
                 <div className="w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center font-bold shrink-0">٣</div>
                 <div>
                   <h3 className="font-bold text-base mb-1 text-red-700">لجنة العقوبات</h3>
-                  <p>لتجنب العقاب العادي، عليكِ إكمال الهدف (الحد الأدنى × ٢) في يومين متتاليين. إذا قصرتِ في ذلك، سيطبق عليكِ العقاب وسيظهر صندوق أحمر منفصل لطلب تنفيذه.</p>
+                  <p>لتجنب العقاب العادي، عليكِ إكمال الهدف (الحد الأدنى × ٢) في يومين متتاليين. إذا لم تتمّ ذلك، ستعاقب.</p>
                 </div>
               </div>
 
               <div className="flex gap-4">
-                <div className="w-8 h-8 rounded-full bg-yellow-100 text-yellow-600 flex items-center justify-center font-bold shrink-0">٤</div>
-                <div>
-                  <h3 className="font-bold text-base mb-1 text-yellow-700">الهدايا والمكافآت والستريك</h3>
-                  <ul className="list-disc pr-4 space-y-1 mt-1">
-                    <li><strong>كروت الإعفاء:</strong> عند إنجاز ٢٠ درساً أو أكثر ليومين متتاليين، ستحصلين على "كرت إعفاء" يلغي العقاب.</li>
-                    <li><strong>نظام الستريك 🔥:</strong> يتم حساب عدد الأيام المتتالية التي أنهيت فيها درساً واحداً على الأقل. انقطاع يوم يعيدك للصفر!</li>
-                    <li><strong>استعادة الستريك 🧊:</strong> تبدأين بـ ٣ كروت لحماية الستريك من الضياع عند الانقطاع.</li>
-                    <li><strong>لجنة المتابعة 🚀:</strong> كل ٧ أيام من الاستمرارية في الستريك ستحصلين على صندوق هدية يحتوي إما على ٣٠٠ نقطة أو كرت استعادة ستريك إضافي.</li>
-                  </ul>
-                </div>
-              </div>
-
-              <div className="flex gap-4">
-                <div className="w-8 h-8 rounded-full bg-slate-800 text-white flex items-center justify-center font-bold shrink-0">٥</div>
+                <div className="w-8 h-8 rounded-full bg-slate-800 text-white flex items-center justify-center font-bold shrink-0">٤</div>
                 <div>
                   <h3 className="font-bold text-base mb-1">الطرد من المجموعة</h3>
                   <p>عند وقوع العقاب، يجب عليكِ الضغط على "أتممت العقاب". إذا ضغطتِ على "لم أتمم" سيتم طردك نهائياً من المجموعة (يمكنك التراجع خلال ٤ ثوانٍ).</p>
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold shrink-0">٥</div>
+                <div>
+                  <h3 className="font-bold text-base mb-1 text-indigo-700">الستريك</h3>
+                  <ul className="list-disc pr-4 space-y-1 mt-1">
+                    <li><strong>نظام الستريك 🔥:</strong> يتم حساب عدد الأيام المتتالية التي أنهيت فيها درساً واحداً على الأقل. انقطاع يوم يعيدك للصفر!</li>
+                  </ul>
                 </div>
               </div>
             </div>
