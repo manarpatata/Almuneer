@@ -6,13 +6,14 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { LESSONS } from './data';
 import { AppState } from './types';
-import { getTodayDateString, processMissedDays, addDays } from './utils';
+import { getTodayDateString, processMissedDays, addDays, calculateStreak } from './utils';
 import { LessonsList } from './components/LessonsList';
 import { CalendarTracker } from './components/CalendarTracker';
 import { WaterGunOverlay } from './components/WaterGunOverlay';
 import { StatsModal } from './components/StatsModal';
+import { WalletModal } from './components/WalletModal';
 import { motion, AnimatePresence } from 'motion/react';
-import { BookOpen, Settings, X, AlertTriangle, RotateCcw, CheckCircle, HelpCircle, Trophy, Gift, Scale, Skull } from 'lucide-react';
+import { BookOpen, Settings, X, AlertTriangle, RotateCcw, CheckCircle, HelpCircle, Trophy, Gift, Scale, Skull, Search } from 'lucide-react';
 
 export default function App() {
   const [state, setState] = useState<AppState>(() => {
@@ -46,6 +47,7 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
   const [showStats, setShowStats] = useState(false);
+  const [showWalletModal, setShowWalletModal] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [confirmGenerate, setConfirmGenerate] = useState(false);
   const [tempGoal, setTempGoal] = useState(state.dailyGoal || 10);
@@ -425,11 +427,11 @@ export default function App() {
   const total2Days = todayCompleted + yesterdayCompleted;
   const twoDayGoal = dailyGoal * 2;
   
-  let statusBoxClasses = "rounded-[2rem] p-6 text-white flex flex-col justify-center items-center gap-4 relative overflow-hidden shrink-0 shadow-lg transition-all duration-300 ";
+  let statusBoxClasses = "rounded-3xl p-4 text-white flex flex-col justify-center items-center gap-2 relative overflow-hidden shadow-lg transition-all duration-300 h-full w-full ";
   let statusBoxContent;
 
   const cornerFraction = (
-    <div className="absolute top-4 left-4 bg-white/20 backdrop-blur-sm px-3 py-1 rounded-lg font-mono font-bold text-sm" dir="ltr">
+    <div className="bg-white/20 backdrop-blur-sm px-2 py-0.5 rounded font-mono font-bold text-xs" dir="ltr">
       {total2Days}/{twoDayGoal}
     </div>
   );
@@ -438,24 +440,27 @@ export default function App() {
     statusBoxClasses += "bg-gradient-to-br from-amber-400 to-amber-500 text-amber-950 shadow-amber-200/50";
     statusBoxContent = (
       <>
+        <AlertTriangle className="w-6 h-6 opacity-80" />
+        <h4 className="text-sm font-bold z-10 text-center">تحت التهديد!</h4>
         {cornerFraction}
-        <h4 className="text-2xl font-bold z-10 text-center">{randomTexts.threatened}</h4>
       </>
     );
   } else if (total2Days >= dailyGoal && total2Days < twoDayGoal) {
     statusBoxClasses += "bg-gradient-to-br from-indigo-500 to-blue-600 shadow-blue-200/50";
     statusBoxContent = (
       <>
+        <RotateCcw className="w-6 h-6 opacity-80" />
+        <h4 className="text-sm font-bold z-10 text-center text-white">نصف المسافة</h4>
         {cornerFraction}
-        <h4 className="text-xl font-bold z-10 text-center">{randomTexts.default}</h4>
       </>
     );
   } else {
     statusBoxClasses += "bg-gradient-to-br from-emerald-400 to-emerald-500 shadow-emerald-200/50";
     statusBoxContent = (
       <>
+        <CheckCircle className="w-6 h-6 opacity-80" />
+        <h4 className="text-sm font-bold z-10 text-center">بر الأمان!</h4>
         {cornerFraction}
-        <h4 className="text-2xl font-bold z-10 text-center">{randomTexts.safe}</h4>
       </>
     );
   }
@@ -514,6 +519,60 @@ export default function App() {
 
   const totalGiftsToday = availableGiftsCount + openedGiftsToday;
 
+  const { currentStreak, freezesAvailable, longestStreak, earnedFollowUpGifts } = useMemo(() => {
+     return calculateStreak(state.history, state.startDate || state.lastLoginDate, todayStr, state.extraStreakFreezes || 0);
+  }, [state.history, state.startDate, state.lastLoginDate, todayStr, state.extraStreakFreezes]);
+
+  const availableFollowUpGifts = Math.max(0, earnedFollowUpGifts - (state.claimedFollowUpGifts || 0));
+  const openedFollowUpGiftsTodayList = state.claimedFollowUpGiftsByDate?.[todayStr] || [];
+  const openedFollowUpGiftsToday = openedFollowUpGiftsTodayList.length;
+  const totalFollowUpGiftsToday = availableFollowUpGifts + openedFollowUpGiftsToday;
+
+  const [openedFollowUpBoxes, setOpenedFollowUpBoxes] = useState<Record<number, boolean>>({});
+
+  useEffect(() => {
+    setOpenedFollowUpBoxes(prev => {
+      const currentOpenedCount = Object.values(prev).filter(Boolean).length;
+      if (currentOpenedCount === openedFollowUpGiftsToday) {
+        return prev;
+      }
+      
+      const newState: Record<number, boolean> = {};
+      for (let i = 0; i < totalFollowUpGiftsToday; i++) {
+        if (i >= availableFollowUpGifts) {
+          newState[i] = true;
+        } else {
+          newState[i] = false;
+        }
+      }
+      return newState;
+    });
+  }, [availableFollowUpGifts, openedFollowUpGiftsToday, totalFollowUpGiftsToday]);
+
+  const handleClaimFollowUpGift = (idx: number) => {
+    if (openedFollowUpBoxes[idx]) return;
+    
+    setOpenedFollowUpBoxes(prev => ({ ...prev, [idx]: true }));
+    const outcome = Math.random() > 0.5 ? 'points' : 'freeze';
+    
+    setState(prev => {
+      const currentList = prev.claimedFollowUpGiftsByDate?.[todayStr] || [];
+      return {
+        ...prev,
+        claimedFollowUpGifts: (prev.claimedFollowUpGifts || 0) + 1,
+        points: (prev.points || 0) + (outcome === 'points' ? 300 : 0),
+        extraStreakFreezes: (prev.extraStreakFreezes || 0) + (outcome === 'freeze' ? 1 : 0),
+        claimedFollowUpGiftsByDate: {
+          ...(prev.claimedFollowUpGiftsByDate || {}),
+          [todayStr]: [...currentList, outcome]
+        }
+      };
+    });
+    setToastMessage(outcome === 'points' ? "تم إضافة 300 نقطة! 🌟" : "تم إضافة كرت استعادة الستريك! 🧊");
+    setTimeout(() => setToastMessage(""), 3000);
+  };
+
+
   const [openedGiftsBoxes, setOpenedGiftsBoxes] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
@@ -543,13 +602,29 @@ export default function App() {
             <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-200/50 shrink-0">
               <BookOpen className="w-5 h-5 md:w-6 md:h-6 text-white" />
             </div>
-            <button
-              onClick={() => setShowStats(true)}
-              className="flex items-center gap-2 bg-yellow-50 hover:bg-yellow-100 transition-colors px-3 py-1.5 md:px-4 md:py-2 rounded-xl border border-yellow-200 text-yellow-700 shadow-sm"
-            >
-              <Trophy className="w-4 h-4 md:w-5 md:h-5 text-yellow-500" />
-              <span className="font-bold font-mono text-sm md:text-base">{currentScore}</span>
-            </button>
+            <div className="flex flex-col md:flex-row gap-1.5 md:gap-2">
+              <button
+                onClick={() => setShowStats(true)}
+                className="flex items-center justify-center gap-1.5 bg-yellow-50 hover:bg-yellow-100 transition-colors px-2.5 py-0.5 md:px-3 md:py-1 rounded-lg border border-yellow-200 text-yellow-700 shadow-sm"
+              >
+                <Trophy className="w-3.5 h-3.5 md:w-4 md:h-4 text-yellow-500" />
+                <span className="font-black font-mono text-[11px] md:text-sm pt-0.5">{currentScore + (state.points || 0)}</span>
+              </button>
+              
+              <button
+                onClick={() => setShowStats(true)}
+                className="flex items-center justify-center gap-1.5 bg-orange-50 hover:bg-orange-100 transition-colors px-2.5 py-0.5 md:px-3 md:py-1 rounded-lg border border-orange-200 text-orange-700 shadow-sm"
+              >
+                <span className="text-[11px] md:text-sm">🔥</span>
+                <span className="font-black font-mono text-[11px] md:text-sm pt-0.5">{currentStreak}</span>
+                {freezesAvailable > 0 && (
+                  <span className="flex items-center gap-1 ml-0.5 pl-1.5 border-l border-orange-200">
+                    <span className="text-[10px] md:text-xs text-blue-500">🧊</span>
+                    <span className="font-bold font-mono text-[10px] md:text-xs text-blue-600 pt-0.5">{freezesAvailable}</span>
+                  </span>
+                )}
+              </button>
+            </div>
           </div>
           
           <div className="flex gap-2 hidden md:flex">
@@ -644,6 +719,46 @@ export default function App() {
             )
           ))}
 
+          {Array.from({ length: totalFollowUpGiftsToday }).map((_, idx) => {
+            const outcome = state.claimedFollowUpGiftsByDate?.[todayStr]?.[idx] || 'points';
+            return !openedFollowUpBoxes[idx] ? (
+              <div key={`fu-gift-${idx}`} onClick={() => handleClaimFollowUpGift(idx)} className="relative w-full h-48 bg-indigo-500 rounded-xl overflow-hidden shadow-2xl cursor-pointer hover:scale-[1.03] active:scale-95 transition-all border-4 border-indigo-600 shrink-0">
+                <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-12 bg-fuchsia-400 shadow-sm"></div>
+                <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-12 bg-fuchsia-400 shadow-sm"></div>
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-fuchsia-500 rotate-45 rounded-xl shadow-lg border-[3px] border-fuchsia-400"></div>
+                
+                <div className="absolute bottom-4 right-4 bg-indigo-50 px-3 py-2 rounded-lg shadow-xl border-2 border-indigo-300 rotate-[-8deg] z-10 w-[140px] pointer-events-none">
+                  <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-indigo-50 rounded-full border-2 border-indigo-300 flex items-center justify-center">
+                    <div className="w-1 h-1 bg-indigo-500 rounded-full"></div>
+                  </div>
+                  <p className="text-sm font-black text-indigo-900 mb-1.5 leading-tight text-center mt-1">هدية لاستمراريتك الرهيبة 🚀</p>
+                  <p className="text-[10px] text-indigo-700 font-bold border-t border-indigo-200 pt-1.5 text-center">من: لجنة المتابعة</p>
+                </div>
+              </div>
+            ) : (
+              <div key={`opened-fu-gift-${idx}`} className="bg-indigo-50 border-[6px] border-indigo-400 rounded-xl p-5 shadow-2xl relative flex flex-col items-center justify-center text-center transform -rotate-2 hover:rotate-0 transition-transform cursor-default h-48 overflow-hidden shrink-0">
+                <div className="absolute inset-1 border-2 border-dashed border-indigo-300 rounded-lg pointer-events-none"></div>
+                <div className="w-12 h-12 bg-indigo-500 text-white rounded-full flex items-center justify-center mb-3 shadow-inner z-10">
+                  <span className="text-2xl">{outcome === 'points' ? '🌟' : '🧊'}</span>
+                </div>
+                <h3 className="font-black text-indigo-800 text-xl uppercase tracking-widest mb-1 z-10">
+                  {outcome === 'points' ? 'ربحت 300 نقطة!' : 'استعادة ستريك'}
+                </h3>
+                {outcome !== 'points' && (
+                  <p className="text-indigo-600 font-bold text-sm z-10 leading-relaxed max-w-[85%]">
+                    كرت استعادة أيام الانقطاع
+                  </p>
+                )}
+                
+                <div className="absolute -bottom-2 right-1 w-32 h-32 rounded-full border-[6px] border-double border-indigo-600 flex flex-col items-center justify-center rotate-[-25deg] opacity-80 z-20">
+                  <div className="w-10 h-10 text-indigo-600 mb-1 flex items-center justify-center font-bold text-4xl"><Search className="w-8 h-8 text-indigo-600" strokeWidth={2.5} /></div>
+                  <span className="text-[12px] font-black text-indigo-600 leading-tight text-center">لجنة<br/>المتابعة</span>
+                </div>
+              </div>
+            );
+          })}
+          
+
           {Array.from({ length: state.pendingPunishmentsCount || (state.pendingPunishment ? 1 : 0) }).map((_, idx) => {
             let classes = "rounded-[2rem] p-6 text-white flex flex-col justify-center items-center gap-4 relative overflow-hidden shrink-0 shadow-lg transition-all duration-300 ";
             const uiState = punishmentUIStates[idx] || 'idle';
@@ -730,8 +845,29 @@ export default function App() {
             );
           })}
 
-          <div className={statusBoxClasses}>
-            {statusBoxContent}
+          <div className="flex gap-4 h-32 shrink-0">
+            {/* Wallet Box (Right side in RTL) */}
+            <div 
+              onClick={() => setShowWalletModal(true)}
+              className="flex-1 bg-amber-800 rounded-3xl relative overflow-hidden shadow-inner border-b-[6px] border-amber-900 cursor-pointer hover:bg-amber-700 transition-colors group"
+            >
+              {/* Flap */}
+              <div className="absolute top-0 left-0 right-0 h-[55%] bg-amber-700 rounded-b-[2rem] border-b-4 border-amber-800 shadow-md flex items-end justify-center pb-2.5 transition-transform group-hover:-translate-y-1">
+                {/* Clasp */}
+                <div className="w-5 h-5 bg-yellow-600 rounded-full shadow-inner border-2 border-yellow-700 relative flex items-center justify-center">
+                  <div className="w-2 h-2 bg-yellow-800/80 rounded-full"></div>
+                </div>
+              </div>
+              {/* Stitching */}
+              <div className="absolute inset-2 border-2 border-dashed border-amber-900/30 rounded-2xl pointer-events-none"></div>
+            </div>
+
+            {/* Status Box (Left side in RTL) */}
+            <div className="flex-1">
+              <div className={statusBoxClasses}>
+                {statusBoxContent}
+              </div>
+            </div>
           </div>
         </aside>
       </main>
@@ -859,14 +995,22 @@ export default function App() {
       )}
       </AnimatePresence>
 
+      {showWalletModal && (
+        <WalletModal
+          immunityCards={state.immunityCards || 0}
+          freezeCards={freezesAvailable}
+          pointsCards={Math.floor((state.points || 0) / 300)}
+          onClose={() => setShowWalletModal(false)}
+        />
+      )}
+      
       {showStats && (
         <StatsModal 
           history={state.history}
           dailyGoal={dailyGoal}
           khatmatCount={state.khatmatCount}
-          immunityCards={state.immunityCards || 0}
-          onClose={() => setShowStats(false)}
-        />
+          immunityCards={state.immunityCards || 0} extraPoints={state.points || 0}
+          onClose={() => setShowStats(false)} />
       )}
 
       {showInstructions && (
@@ -897,28 +1041,41 @@ export default function App() {
               <div className="flex gap-4">
                 <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center font-bold shrink-0">٢</div>
                 <div>
-                  <h3 className="font-bold text-base mb-1">منطقة التهديد</h3>
-                  <p>إذا لم تنجزي الحد الأدنى في يوم ما، ستكونين مهددة بالعقاب في اليوم التالي. الصندوق سيتحول للون الأصفر التحذيري.</p>
+                  <h3 className="font-bold text-base mb-1">منطقة التهديد والرش بالماء</h3>
+                  <p>إذا لم تنجزي الحد الأدنى في يوم ما، ستكونين مهددة بالعقاب في اليوم التالي.</p>
+                  <p className="mt-1 text-blue-600 font-bold">🔫 التفتيق: إذا لم تتم أي درس في يوم ما (صفر درس) ستعاقب!</p>
                 </div>
               </div>
-
+              
               <div className="flex gap-4">
-                <div className="w-8 h-8 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center font-bold shrink-0">٣</div>
+                <div className="w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center font-bold shrink-0">٣</div>
                 <div>
-                  <h3 className="font-bold text-base mb-1">العقاب</h3>
-                  <p>لتجنب العقاب، عليكِ إكمال {dailyGoal * 2} درساً في يومين متتاليين. إذا قصرتِ في ذلك، سيطبق عليكِ العقاب وسيظهر صندوق أحمر منفصل لطلب تنفيذه.</p>
+                  <h3 className="font-bold text-base mb-1 text-red-700">لجنة العقوبات</h3>
+                  <p>لتجنب العقاب العادي، عليكِ إكمال الهدف (الحد الأدنى × ٢) في يومين متتاليين. إذا قصرتِ في ذلك، سيطبق عليكِ العقاب وسيظهر صندوق أحمر منفصل لطلب تنفيذه.</p>
                 </div>
               </div>
 
               <div className="flex gap-4">
-                <div className="w-8 h-8 rounded-full bg-slate-800 text-white flex items-center justify-center font-bold shrink-0">٤</div>
+                <div className="w-8 h-8 rounded-full bg-yellow-100 text-yellow-600 flex items-center justify-center font-bold shrink-0">٤</div>
+                <div>
+                  <h3 className="font-bold text-base mb-1 text-yellow-700">الهدايا والمكافآت والستريك</h3>
+                  <ul className="list-disc pr-4 space-y-1 mt-1">
+                    <li><strong>كروت الإعفاء:</strong> عند إنجاز ٢٠ درساً أو أكثر ليومين متتاليين، ستحصلين على "كرت إعفاء" يلغي العقاب.</li>
+                    <li><strong>نظام الستريك 🔥:</strong> يتم حساب عدد الأيام المتتالية التي أنهيت فيها درساً واحداً على الأقل. انقطاع يوم يعيدك للصفر!</li>
+                    <li><strong>استعادة الستريك 🧊:</strong> تبدأين بـ ٣ كروت لحماية الستريك من الضياع عند الانقطاع.</li>
+                    <li><strong>لجنة المتابعة 🚀:</strong> كل ٧ أيام من الاستمرارية في الستريك ستحصلين على صندوق هدية يحتوي إما على ٣٠٠ نقطة أو كرت استعادة ستريك إضافي.</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                <div className="w-8 h-8 rounded-full bg-slate-800 text-white flex items-center justify-center font-bold shrink-0">٥</div>
                 <div>
                   <h3 className="font-bold text-base mb-1">الطرد من المجموعة</h3>
                   <p>عند وقوع العقاب، يجب عليكِ الضغط على "أتممت العقاب". إذا ضغطتِ على "لم أتمم" سيتم طردك نهائياً من المجموعة (يمكنك التراجع خلال ٤ ثوانٍ).</p>
                 </div>
               </div>
             </div>
-            
             <div className="p-4 border-t border-slate-100 bg-slate-50 shrink-0">
               <button 
                 onClick={() => setShowInstructions(false)}

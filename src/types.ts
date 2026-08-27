@@ -23,4 +23,10 @@ export interface AppState {
   earnedGiftDates?: string[];
   lastClaimedGiftDate?: string;
   claimedGiftsByDate?: Record<string, number>;
+  
+  // Follow-up & Streak
+  extraStreakFreezes?: number;
+  claimedFollowUpGifts?: number;
+  claimedFollowUpGiftsByDate?: Record<string, Array<'points' | 'freeze'>>; // Track what they got today!
+  points?: number;
 }

@@ -8,17 +8,19 @@ interface StatsModalProps {
   dailyGoal: number;
   khatmatCount: number;
   immunityCards: number;
+  extraPoints: number;
   onClose: () => void;
 }
 
-export function StatsModal({ history, dailyGoal, khatmatCount, immunityCards, onClose }: StatsModalProps) {
+export function StatsModal({ history, dailyGoal, khatmatCount, immunityCards, extraPoints, onClose }: StatsModalProps) {
   let totalLessons = 0;
   let superDays = 0; // days with >= 20 lessons (but < 28)
   let normalDays = 0; // days with >= dailyGoal (but < 20)
   let threatenedDays = 0; // days with < dailyGoal (but not punished)
   let punishments = 0;
   let expulsions = 0;
-  let score = khatmatCount * 100;
+  let waterGunShots = 0;
+  let score = (khatmatCount * 100) + (extraPoints || 0);
 
   Object.values(history).forEach(day => {
     totalLessons += day.lessonsCompleted;
@@ -28,6 +30,10 @@ export function StatsModal({ history, dailyGoal, khatmatCount, immunityCards, on
     
     expulsions += failed;
     
+    if (day.punishedDaily) {
+      waterGunShots++;
+    }
+
     // Penalties
     score -= failed * 100;
     
@@ -73,7 +79,7 @@ export function StatsModal({ history, dailyGoal, khatmatCount, immunityCards, on
           <div className="flex justify-between items-center p-6 border-b border-slate-100 shrink-0 bg-gradient-to-r from-emerald-500 to-teal-600 text-white">
             <h2 className="text-xl font-bold flex items-center gap-2">
               <Trophy className="w-6 h-6 text-yellow-300" />
-              سجل الإنجازات والنقاط
+              تقرير الإنجازات
             </h2>
             <button
               onClick={onClose}
@@ -141,6 +147,15 @@ export function StatsModal({ history, dailyGoal, khatmatCount, immunityCards, on
                 </div>
               </div>
 
+              <div className="flex items-center justify-between p-3 bg-blue-50/50 rounded-xl">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-lg">🔫</div>
+                  <span className="font-bold text-slate-700 text-sm">رشات الماء</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold font-mono text-blue-600">{waterGunShots}</span>
+                </div>
+              </div>
               <div className="flex items-center justify-between p-3 bg-amber-50/50 rounded-xl">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center">
