@@ -9,6 +9,15 @@ export interface DailyStats {
   punishmentResolved?: boolean;
 }
 
+export interface SupervisorGift {
+  id: string;
+  message: string;
+  from: string;
+  claimed: boolean;
+  timestamp: number;
+  giftType?: 'points' | 'freeze' | 'pardon';
+}
+
 export interface AppState {
   completedLessons: string[];
   khatmatCount: number;
@@ -27,6 +36,16 @@ export interface AppState {
   // Follow-up & Streak
   extraStreakFreezes?: number;
   claimedFollowUpGifts?: number;
-  claimedFollowUpGiftsByDate?: Record<string, Array<'points' | 'freeze'>>; // Track what they got today!
+  claimedFollowUpGiftsByDate?: Record<string, Array<'points' | 'freeze'>>; 
   points?: number;
+
+  // Identity & Supervisor Features
+  email?: string;
+  displayName?: string;
+  avatarUrl?: string;
+  kicked?: boolean;
+  expelledUntil?: number;
+  trackedUsers?: string[];
+  supervisorGifts?: SupervisorGift[];
+  supervisorPunishmentReason?: string;
 }

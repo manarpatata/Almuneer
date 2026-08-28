@@ -16,15 +16,19 @@ import { motion, AnimatePresence } from 'motion/react';
 import { BookOpen, Settings, X, AlertTriangle, RotateCcw, CheckCircle, HelpCircle, Trophy, Gift, Scale, Skull, Search, Shield, Star, Snowflake } from 'lucide-react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth, db } from './firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { Auth } from './components/Auth';
 import { ProfileMenu } from './components/ProfileMenu';
+import { SupervisorDashboard } from './components/SupervisorDashboard';
+import { SupervisorGiftOverlay } from './components/SupervisorGiftOverlay';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [dataLoadedFromCloud, setDataLoadedFromCloud] = useState(false);
+  const [showDashboard, setShowDashboard] = useState(false);
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -39,27 +43,37 @@ export default function App() {
 
   useEffect(() => {
     if (user) {
-      const loadCloudData = async () => {
-        try {
-          const docRef = doc(db, 'users', user.uid);
-          const docSnap = await getDoc(docRef);
+      let isFirstLoad = true;
+      const unsubscribe = onSnapshot(doc(db, 'users', user.uid), async (docSnap) => {
+        if (docSnap.exists()) {
+          const cloudData = docSnap.data() as AppState;
+          const { newState } = processMissedDays(cloudData);
+          if (newState.dailyGoal === undefined) newState.dailyGoal = 10;
           
-          if (docSnap.exists()) {
-            const cloudData = docSnap.data() as AppState;
-            const { newState } = processMissedDays(cloudData);
-            if (newState.dailyGoal === undefined) newState.dailyGoal = 10;
-            setState(newState);
-          } else {
-            // First time login, save current local state to cloud
-            await setDoc(docRef, state);
+          setState(prev => {
+            // Avoid triggering an immediate save loop
+            return { ...newState };
+          });
+        } else {
+          if (isFirstLoad) {
+            // First time login, save current local state to cloud with user info
+            const initialState = {
+              ...state,
+              email: user.email,
+              displayName: user.displayName || user.email?.split('@')[0]
+            };
+            await setDoc(doc(db, 'users', user.uid), JSON.parse(JSON.stringify(initialState)));
+            setState(initialState);
           }
-        } catch (e) {
-          console.error("Error loading cloud data:", e);
-        } finally {
+        }
+        if (isFirstLoad) {
+          isFirstLoad = false;
           setDataLoadedFromCloud(true);
         }
-      };
-      loadCloudData();
+      }, (err) => {
+        console.error("Error loading cloud data:", err);
+      });
+      return () => unsubscribe();
     } else {
       setDataLoadedFromCloud(false);
     }
@@ -111,7 +125,14 @@ export default function App() {
     if (user && dataLoadedFromCloud) {
       // Use a small timeout to debounce writes
       const timeoutId = setTimeout(() => {
-        setDoc(doc(db, 'users', user.uid), state).catch(e => console.error("Error saving to cloud:", e));
+        const stateToSave = {
+          ...state,
+          email: user.email,
+          displayName: user.displayName || user.email?.split('@')[0]
+        };
+        // Clean undefined values to prevent Firebase errors
+        const cleanState = JSON.parse(JSON.stringify(stateToSave));
+        setDoc(doc(db, 'users', user.uid), cleanState).catch(e => console.error("Error saving to cloud:", e));
       }, 500);
       return () => clearTimeout(timeoutId);
     }
@@ -527,6 +548,32 @@ export default function App() {
     setConfirmReset(true);
   };
 
+
+  const handleClaimSupervisorGift = (giftId: string) => {
+    setState(prev => {
+      const gift = prev.supervisorGifts?.find(g => g.id === giftId);
+      const newGifts = (prev.supervisorGifts || []).map(g => 
+        g.id === giftId ? { ...g, claimed: true } : g
+      );
+      const giftType = gift?.giftType || 'points';
+      
+      let msg = "تم استلام هدية المشرف! ✨";
+      if (giftType === 'freeze') msg = "تم إضافة كرت تجميد ستريك! 🧊";
+      if (giftType === 'pardon') msg = "تم إضافة كرت إعفاء من العقوبة! 🛡️";
+      
+      setToastMessage(msg);
+      setTimeout(() => setToastMessage(""), 3000);
+      
+      return {
+        ...prev,
+        supervisorGifts: newGifts,
+        points: giftType === 'points' ? (prev.points || 0) + 300 : (prev.points || 0),
+        extraStreakFreezes: giftType === 'freeze' ? (prev.extraStreakFreezes || 0) + 1 : (prev.extraStreakFreezes || 0),
+        immunityCards: giftType === 'pardon' ? (prev.immunityCards || 0) + 1 : (prev.immunityCards || 0)
+      };
+    });
+  };
+
   const executeReset = () => {
     const today = getTodayDateString();
     setState({
@@ -658,13 +705,31 @@ export default function App() {
 
 
 
+  if (showDashboard && user) {
+    return <SupervisorDashboard onClose={() => setShowDashboard(false)} supervisorId={user.uid} trackedUsers={state.trackedUsers || []} />;
+  }
+
+  const isExpelled = state.expelledUntil && state.expelledUntil > Date.now();
+  
+  const mainBgClasses = isExpelled 
+    ? "bg-gradient-to-br from-red-50 to-red-100/80 text-red-950" 
+    : "bg-gradient-to-br from-slate-50 to-slate-100/80 text-slate-800";
+
   return (
-    <div className="flex flex-col min-h-screen w-full bg-gradient-to-br from-slate-50 to-slate-100/80 font-sans text-slate-800" dir="rtl">
+    <div className={`flex flex-col min-h-screen w-full font-sans ${mainBgClasses}`} dir="rtl">
+      {isExpelled && (
+        <div className="bg-red-600 text-white text-center py-2 px-4 font-bold text-sm shadow-md flex items-center justify-center gap-2 sticky top-0 z-[60]">
+          <AlertTriangle className="w-4 h-4 shrink-0" />
+          <span>أنت مطرود بقرار من المشرف لمدة 24 ساعة، لكن يمكنك متابعة مهامك لتجنب خسارة الستريك!</span>
+        </div>
+      )}
       {showAuthModal && <Auth onClose={() => setShowAuthModal(false)} />}
+      
+      <SupervisorGiftOverlay gifts={state.supervisorGifts || []} onClaim={handleClaimSupervisorGift} />
       <header className="flex items-center justify-between px-4 md:px-8 py-4 bg-white/80 backdrop-blur-md border-b border-slate-200 shrink-0 sticky top-0 z-50">
         <div className="flex items-center gap-4 md:gap-6">
           <div className="flex items-center gap-3">
-            <ProfileMenu user={user} onLogin={() => setShowAuthModal(true)} />
+            <ProfileMenu user={user} avatarUrl={state.avatarUrl} onLogin={() => setShowAuthModal(true)} onOpenDashboard={() => setShowDashboard(true)} onChangeAvatar={() => setShowAvatarModal(true)} />
             <div className="flex flex-col md:flex-row gap-1.5 md:gap-2">
               <button
                 onClick={() => setShowStats(true)}
