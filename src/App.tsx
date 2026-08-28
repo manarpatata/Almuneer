@@ -14,8 +14,57 @@ import { StatsModal } from './components/StatsModal';
 import { WalletModal } from './components/WalletModal';
 import { motion, AnimatePresence } from 'motion/react';
 import { BookOpen, Settings, X, AlertTriangle, RotateCcw, CheckCircle, HelpCircle, Trophy, Gift, Scale, Skull, Search, Shield, Star, Snowflake } from 'lucide-react';
+import { onAuthStateChanged, User } from 'firebase/auth';
+import { auth, db } from './firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { Auth } from './components/Auth';
+import { ProfileMenu } from './components/ProfileMenu';
 
 export default function App() {
+  const [user, setUser] = useState<User | null>(null);
+  const [loadingAuth, setLoadingAuth] = useState(true);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [dataLoadedFromCloud, setDataLoadedFromCloud] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setLoadingAuth(false);
+      if (currentUser) {
+        setShowAuthModal(false);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      const loadCloudData = async () => {
+        try {
+          const docRef = doc(db, 'users', user.uid);
+          const docSnap = await getDoc(docRef);
+          
+          if (docSnap.exists()) {
+            const cloudData = docSnap.data() as AppState;
+            const { newState } = processMissedDays(cloudData);
+            if (newState.dailyGoal === undefined) newState.dailyGoal = 10;
+            setState(newState);
+          } else {
+            // First time login, save current local state to cloud
+            await setDoc(docRef, state);
+          }
+        } catch (e) {
+          console.error("Error loading cloud data:", e);
+        } finally {
+          setDataLoadedFromCloud(true);
+        }
+      };
+      loadCloudData();
+    } else {
+      setDataLoadedFromCloud(false);
+    }
+  }, [user]);
+
   const [state, setState] = useState<AppState>(() => {
     const saved = localStorage.getItem('alMuneerState_v4');
     if (saved) {
@@ -57,7 +106,16 @@ export default function App() {
 
   useEffect(() => {
     localStorage.setItem('alMuneerState_v4', JSON.stringify(state));
-  }, [state]);
+    
+    // Sync to Firestore if user is logged in and initial cloud load is complete
+    if (user && dataLoadedFromCloud) {
+      // Use a small timeout to debounce writes
+      const timeoutId = setTimeout(() => {
+        setDoc(doc(db, 'users', user.uid), state).catch(e => console.error("Error saving to cloud:", e));
+      }, 500);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [state, user, dataLoadedFromCloud]);
 
   useEffect(() => {
     const saved = localStorage.getItem('alMuneerState_v4');
@@ -596,14 +654,26 @@ export default function App() {
     });
   }, [availableGiftsCount, openedGiftsToday, totalGiftsToday]);
 
+  if (loadingAuth) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4" dir="rtl">
+        <div className="text-xl font-bold text-slate-700 animate-pulse flex items-center gap-3">
+          <div className="w-6 h-6 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+          جارٍ التحميل...
+        </div>
+      </div>
+    );
+  }
+
+
+
   return (
     <div className="flex flex-col min-h-screen w-full bg-gradient-to-br from-slate-50 to-slate-100/80 font-sans text-slate-800" dir="rtl">
+      {showAuthModal && <Auth onClose={() => setShowAuthModal(false)} />}
       <header className="flex items-center justify-between px-4 md:px-8 py-4 bg-white/80 backdrop-blur-md border-b border-slate-200 shrink-0 sticky top-0 z-50">
         <div className="flex items-center gap-4 md:gap-6">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-200/50 shrink-0">
-              <BookOpen className="w-5 h-5 md:w-6 md:h-6 text-white" />
-            </div>
+            <ProfileMenu user={user} onLogin={() => setShowAuthModal(true)} />
             <div className="flex flex-col md:flex-row gap-1.5 md:gap-2">
               <button
                 onClick={() => setShowStats(true)}
