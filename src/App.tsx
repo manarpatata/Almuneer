@@ -654,16 +654,7 @@ export default function App() {
     });
   }, [availableGiftsCount, openedGiftsToday, totalGiftsToday]);
 
-  if (loadingAuth) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4" dir="rtl">
-        <div className="text-xl font-bold text-slate-700 animate-pulse flex items-center gap-3">
-          <div className="w-6 h-6 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-          جارٍ التحميل...
-        </div>
-      </div>
-    );
-  }
+
 
 
 

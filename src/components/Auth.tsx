@@ -32,7 +32,7 @@ export function Auth({ onClose }: AuthProps) {
       case 'auth/user-not-found':
       case 'auth/wrong-password':
       case 'auth/invalid-credential':
-        return 'البريد الإلكتروني أو كلمة المرور غير صحيحة.';
+        return 'هذا الحساب غير مسجل أو كلمة المرور غير صحيحة. يرجى التأكد أو إنشاء حساب جديد.';
       case 'auth/too-many-requests':
         return 'تم حظر الحساب مؤقتاً بسبب كثرة المحاولات. يرجى المحاولة لاحقاً.';
       default:
@@ -52,6 +52,7 @@ export function Auth({ onClose }: AuthProps) {
       } else {
         await signInWithEmailAndPassword(auth, email, password);
       }
+      if (onClose) onClose();
     } catch (err: any) {
       setError(getArabicErrorMessage(err.code));
     } finally {
@@ -65,6 +66,7 @@ export function Auth({ onClose }: AuthProps) {
     setLoading(true);
     try {
       await signInWithPopup(auth, googleProvider);
+      if (onClose) onClose();
     } catch (err: any) {
       setError(getArabicErrorMessage(err.code));
     } finally {
