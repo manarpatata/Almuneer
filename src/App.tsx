@@ -255,7 +255,7 @@ export default function App() {
   const punishmentTimeoutRefs = useRef<Record<number, NodeJS.Timeout>>({});
 
   const PUNISHMENT_TITLES = [
-    "معاقبة من لجنة العقاب🔫💥",
+    "معاقبة من لجنة العقوبات",
     "واقعة تحت بند العقوبة🔫💥",
     "محكوم عليك بالعقاب🔫💥"
   ];
