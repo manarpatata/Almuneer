@@ -3,9 +3,10 @@ import { doc, getDoc, updateDoc, onSnapshot, arrayUnion, arrayRemove } from 'fir
 import { db } from '../firebase';
 import { AppState, SupervisorGift } from '../types';
 import { Users, Search, Gift, Skull, ShieldBan, X, AlertTriangle, ShieldCheck, ArrowRight, UserPlus, Trash2 } from 'lucide-react';
-import { calculateTotalScore } from '../utils';
+import { calculateTotalScore, getWeeklyLessons, getTodayDateString } from '../utils';
+import { SupervisorReports } from './SupervisorReports';
 
-export function SupervisorDashboard({ onClose, supervisorId, trackedUsers = [] }: { onClose: () => void, supervisorId: string, trackedUsers?: string[] }) {
+export function SupervisorDashboard({ onClose, supervisorId, trackedUsers = [], showToast }: { onClose: () => void, supervisorId: string, trackedUsers?: string[], showToast?: (msg: string) => void }) {
   const [usersMap, setUsersMap] = useState<Record<string, AppState>>({});
   const [newUserId, setNewUserId] = useState('');
   const [loadingAdd, setLoadingAdd] = useState(false);
@@ -18,6 +19,9 @@ export function SupervisorDashboard({ onClose, supervisorId, trackedUsers = [] }
   const [selectedUser, setSelectedUser] = useState<{ id: string; data: AppState } | null>(null);
   const [showGiftModal, setShowGiftModal] = useState(false);
   const [showPunishModal, setShowPunishModal] = useState(false);
+  const [punishReason, setPunishReason] = useState('');
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+
   
   // Gift form
   const [giftMessage, setGiftMessage] = useState('');
@@ -82,7 +86,7 @@ export function SupervisorDashboard({ onClose, supervisorId, trackedUsers = [] }
       });
     } catch (e) {
       console.error(e);
-      alert('حدث خطأ أثناء الإزالة');
+      showToast ? showToast('حدث خطأ أثناء الإزالة') : alert('حدث خطأ أثناء الإزالة');
     }
   };
 
@@ -104,10 +108,10 @@ export function SupervisorDashboard({ onClose, supervisorId, trackedUsers = [] }
       await updateDoc(userRef, { supervisorGifts: updatedGifts });
       
       setShowGiftModal(false);
-      alert('تم إرسال الهدية بنجاح!');
+      showToast ? showToast('تم إرسال الهدية بنجاح! ✨') : alert('تم إرسال الهدية بنجاح!');
     } catch (e) {
       console.error(e);
-      alert('حدث خطأ أثناء الإرسال');
+      showToast ? showToast('حدث خطأ أثناء الإرسال') : alert('حدث خطأ أثناء الإرسال');
     }
   };
 
@@ -115,17 +119,21 @@ export function SupervisorDashboard({ onClose, supervisorId, trackedUsers = [] }
     if (!selectedUser) return;
     try {
       const userRef = doc(db, 'users', selectedUser.id);
-      const newCount = (selectedUser.data.pendingPunishmentsCount || 0) + 1;
       await updateDoc(userRef, {
-        pendingPunishment: true,
-        pendingPunishmentsCount: newCount
+        supervisorPunishments: arrayUnion({
+          id: Date.now().toString(),
+          reason: punishReason || 'عقاب من المشرف',
+          sender: 'المشرف',
+          timestamp: Date.now()
+        })
       });
       
       setShowPunishModal(false);
-      alert('تم إرسال العقوبة بنجاح!');
+      setPunishReason('');
+      showToast ? showToast('تم إرسال العقوبة بنجاح! 💀') : alert('تم إرسال العقوبة بنجاح!');
     } catch (e) {
       console.error(e);
-      alert('حدث خطأ أثناء الإرسال');
+      showToast ? showToast('حدث خطأ أثناء الإرسال') : alert('حدث خطأ أثناء الإرسال');
     }
   };
 
@@ -138,10 +146,10 @@ export function SupervisorDashboard({ onClose, supervisorId, trackedUsers = [] }
       await updateDoc(userRef, { points: newPoints });
       
       setShowPointsModal(false);
-      alert('تم تعديل النقاط بنجاح!');
+      showToast ? showToast('تم تعديل النقاط بنجاح! 🌟') : alert('تم تعديل النقاط بنجاح!');
     } catch (e) {
       console.error(e);
-      alert('حدث خطأ أثناء تعديل النقاط');
+      showToast ? showToast('حدث خطأ أثناء تعديل النقاط') : alert('حدث خطأ أثناء تعديل النقاط');
     }
   };
 
@@ -152,10 +160,10 @@ export function SupervisorDashboard({ onClose, supervisorId, trackedUsers = [] }
       const expelledUntil = Date.now() + 24 * 60 * 60 * 1000; // 24 hours from now
       await updateDoc(userRef, { expelledUntil });
       
-      alert('تم تطبيق الطرد لمدة 24 ساعة بنجاح!');
+      showToast ? showToast('تم تطبيق الطرد لمدة 24 ساعة بنجاح! 🚫') : alert('تم تطبيق الطرد لمدة 24 ساعة بنجاح!');
     } catch (e) {
       console.error(e);
-      alert('حدث خطأ أثناء الطرد');
+      showToast ? showToast('حدث خطأ أثناء الطرد') : alert('حدث خطأ أثناء الطرد');
     }
   };
 
@@ -500,6 +508,7 @@ export function SupervisorDashboard({ onClose, supervisorId, trackedUsers = [] }
         </div>
       )}
 
+      <SupervisorReports usersMap={usersMap} supervisorId={supervisorId} />
     </div>
   );
 }

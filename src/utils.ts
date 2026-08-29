@@ -39,13 +39,13 @@ export function processMissedDays(currentState: AppState) {
   
   while (currDate < today) {
     const dayStats = newState.history[currDate] || { lessonsCompleted: 0, punishedDaily: false, punished2Days: false };
+    let punishedThisDay = false;
     
     // Check daily punishment
     if (dayStats.lessonsCompleted === 0 && !dayStats.punishedDaily) {
       dayStats.punishedDaily = true;
       activePunishments.waterGuns.push(currDate);
-      newState.pendingPunishment = true;
-      newState.pendingPunishmentsCount = (newState.pendingPunishmentsCount || 0) + 1;
+      // Removed pendingPunishment and pendingPunishmentsCount increment for daily failure
     }
     
     // Check 2-day punishment
@@ -133,4 +133,24 @@ export function calculateTotalScore(state: AppState) {
   }
   
   return Math.max(0, score) + (state.points || 0);
+}
+
+export function getMostRecentThursday(dateStr: string): string {
+  const d = new Date(dateStr);
+  const day = d.getDay(); // 0 = Sun, 1 = Mon, ..., 4 = Thu
+  const diff = day >= 4 ? day - 4 : day + 3;
+  d.setDate(d.getDate() - diff);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+export function getWeeklyLessons(history: Record<string, any>, todayStr: string): number {
+  if (!history) return 0;
+  const thursday = getMostRecentThursday(todayStr);
+  let total = 0;
+  let curr = thursday;
+  while (curr <= todayStr) {
+    total += (history[curr]?.lessonsCompleted || 0);
+    curr = addDays(curr, 1);
+  }
+  return total;
 }

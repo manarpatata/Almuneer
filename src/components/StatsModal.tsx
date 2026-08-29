@@ -2,6 +2,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Trophy, Target, AlertTriangle, ShieldAlert, Star, BookOpen } from 'lucide-react';
 import { AppState, DailyStats } from '../types';
+import { getWeeklyLessons, getTodayDateString } from '../utils';
 
 interface StatsModalProps {
   history: Record<string, DailyStats>;

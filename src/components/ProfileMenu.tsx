@@ -12,7 +12,7 @@ interface ProfileMenuProps {
   onOpenDashboard?: () => void;
 }
 
-export function ProfileMenu({ user, avatarUrl, onLogin, onOpenDashboard, onChangeAvatar }: ProfileMenuProps) {
+export function ProfileMenu({ user, avatarUrl, onLogin, onOpenDashboard, onChangeAvatar, showToast }: ProfileMenuProps & { showToast?: (msg: string) => void }) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -66,7 +66,7 @@ export function ProfileMenu({ user, avatarUrl, onLogin, onOpenDashboard, onChang
                       <div className="text-[10px] font-mono text-slate-400 w-24 truncate">{user.uid}</div>
                     </div>
                     <button 
-                      onClick={() => { navigator.clipboard.writeText(user.uid); alert('تم نسخ الكود بنجاح!'); }}
+                      onClick={() => { navigator.clipboard.writeText(user.uid); showToast ? showToast('تم نسخ الكود بنجاح! 📋') : alert('تم نسخ الكود بنجاح!'); }}
                       className="text-xs text-indigo-600 font-bold hover:underline bg-indigo-50 px-2 py-1 rounded"
                     >
                       نسخ

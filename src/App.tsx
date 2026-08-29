@@ -9,6 +9,7 @@ import { AppState } from './types';
 import { getTodayDateString, processMissedDays, addDays, calculateStreak } from './utils';
 import { LessonsList } from './components/LessonsList';
 import { CalendarTracker } from './components/CalendarTracker';
+import { UserLeaderboard } from './components/UserLeaderboard';
 import { WaterGunOverlay } from './components/WaterGunOverlay';
 import { StatsModal } from './components/StatsModal';
 import { WalletModal } from './components/WalletModal';
@@ -387,7 +388,7 @@ export default function App() {
     setOpenedPunishmentBoxes(prev => ({ ...prev, [index]: true }));
   };
 
-  const handleUseCardAction = (index: number) => {
+  const handleUseCardAction = (index: number, pId: string, isSystem: boolean) => {
     if ((state.immunityCards || 0) <= 0) return;
     
     setState(prev => ({
@@ -401,11 +402,18 @@ export default function App() {
     punishmentTimeoutRefs.current[index] = setTimeout(() => {
       const today = getTodayDateString();
       setState(prev => {
-        const newCount = Math.max(0, (prev.pendingPunishmentsCount || (prev.pendingPunishment ? 1 : 0)) - 1);
+        let newCount = prev.pendingPunishmentsCount || (prev.pendingPunishment ? 1 : 0);
+        let newSupPuns = prev.supervisorPunishments || [];
+        if (isSystem) {
+          newCount = Math.max(0, newCount - 1);
+        } else {
+          newSupPuns = newSupPuns.filter(p => p.id !== pId);
+        }
         return {
           ...prev,
           pendingPunishment: newCount > 0,
           pendingPunishmentsCount: newCount,
+          supervisorPunishments: newSupPuns,
           history: {
             ...prev.history,
             [today]: {
@@ -420,18 +428,25 @@ export default function App() {
     }, 3000);
   };
 
-  const handlePunishmentAction = (index: number, fulfilled: boolean) => {
+  const handlePunishmentAction = (index: number, fulfilled: boolean, pId: string, isSystem: boolean) => {
     setPunishmentUIStates(prev => ({ ...prev, [index]: fulfilled ? 'resolving_done' : 'resolving_failed' }));
     if (punishmentTimeoutRefs.current[index]) clearTimeout(punishmentTimeoutRefs.current[index]);
     
     punishmentTimeoutRefs.current[index] = setTimeout(() => {
       const today = getTodayDateString();
       setState(prev => {
-        const newCount = Math.max(0, (prev.pendingPunishmentsCount || (prev.pendingPunishment ? 1 : 0)) - 1);
+        let newCount = prev.pendingPunishmentsCount || (prev.pendingPunishment ? 1 : 0);
+        let newSupPuns = prev.supervisorPunishments || [];
+        if (isSystem) {
+          newCount = Math.max(0, newCount - 1);
+        } else {
+          newSupPuns = newSupPuns.filter(p => p.id !== pId);
+        }
         return { 
           ...prev, 
           pendingPunishment: newCount > 0,
           pendingPunishmentsCount: newCount,
+          supervisorPunishments: newSupPuns,
           history: fulfilled ? {
             ...prev.history,
             [today]: {
@@ -706,7 +721,7 @@ export default function App() {
 
 
   if (showDashboard && user) {
-    return <SupervisorDashboard onClose={() => setShowDashboard(false)} supervisorId={user.uid} trackedUsers={state.trackedUsers || []} />;
+    return <SupervisorDashboard onClose={() => setShowDashboard(false)} supervisorId={user.uid} trackedUsers={state.trackedUsers || []} showToast={(msg) => { setToastMessage(msg); setTimeout(() => setToastMessage(''), 3000); }} />;
   }
 
   const isExpelled = state.expelledUntil && state.expelledUntil > Date.now();
@@ -729,7 +744,7 @@ export default function App() {
       <header className="flex items-center justify-between px-4 md:px-8 py-4 bg-white/80 backdrop-blur-md border-b border-slate-200 shrink-0 sticky top-0 z-50">
         <div className="flex items-center gap-4 md:gap-6">
           <div className="flex items-center gap-3">
-            <ProfileMenu user={user} avatarUrl={state.avatarUrl} onLogin={() => setShowAuthModal(true)} onOpenDashboard={() => setShowDashboard(true)} onChangeAvatar={() => setShowAvatarModal(true)} />
+            <ProfileMenu user={user} avatarUrl={state.avatarUrl} onLogin={() => setShowAuthModal(true)} onOpenDashboard={() => setShowDashboard(true)} onChangeAvatar={() => setShowAvatarModal(true)} showToast={(msg) => { setToastMessage(msg); setTimeout(() => setToastMessage(''), 3000); }} />
             <div className="flex flex-col md:flex-row gap-1.5 md:gap-2">
               <button
                 onClick={() => setShowStats(true)}
@@ -780,7 +795,7 @@ export default function App() {
             <span className="text-lg md:text-2xl font-black text-red-600 font-mono" dir="ltr">{timeToMidnight}</span>
           </div>
 
-          <div className="flex md:hidden gap-1">
+          <div className="flex flex-col md:hidden gap-1">
             <button 
               onClick={() => {
                 setTempGoal(state.dailyGoal || 10);
@@ -810,6 +825,7 @@ export default function App() {
         
         <aside className="flex-1 flex flex-col gap-6 pb-6 pr-1">
           <CalendarTracker history={state.history} dailyGoal={dailyGoal} currentScore={currentScore} pendingPunishment={state.pendingPunishment} pendingPunishmentsCount={state.pendingPunishmentsCount} />
+          {state.leaderboardSettings && <UserLeaderboard settings={state.leaderboardSettings} />}
           
           {Array.from({ length: totalGiftsToday }).map((_, idx) => (
             !openedGiftsBoxes[idx] ? (
@@ -887,10 +903,21 @@ export default function App() {
           })}
           
 
-          {Array.from({ length: state.pendingPunishmentsCount || (state.pendingPunishment ? 1 : 0) }).map((_, idx) => {
-            let classes = "rounded-[2rem] p-6 text-white flex flex-col justify-center items-center gap-4 relative overflow-hidden shrink-0 shadow-lg transition-all duration-300 ";
-            const uiState = punishmentUIStates[idx] || 'idle';
-            let content;
+          
+          {(() => {
+            const systemPunishments = Array.from({ length: state.pendingPunishmentsCount || (state.pendingPunishment ? 1 : 0) }).map((_, i) => ({
+              id: `sys-${i}`,
+              type: 'system',
+              reason: 'لم تنهي ٢٠ درسًا في اليومين الماضيين🔪',
+              sender: 'لجنة العقوبات'
+            }));
+            const supPunishments = state.supervisorPunishments || [];
+            const allPunishments = [...systemPunishments, ...supPunishments];
+            
+            return allPunishments.map((punishment, idx) => {
+              let classes = "rounded-[2rem] p-6 text-white flex flex-col justify-center items-center gap-4 relative overflow-hidden shrink-0 shadow-lg transition-all duration-300 ";
+              const uiState = punishmentUIStates[idx] || 'idle';
+              let content;
 
             if (!openedPunishmentBoxes[idx]) {
               classes = "rounded-xl overflow-hidden shadow-2xl relative transition-all duration-300 cursor-pointer hover:scale-[1.02] active:scale-95 bg-[#c19a6b] h-56 border-[4px] border-[#a68053] shrink-0";
@@ -912,7 +939,15 @@ export default function App() {
                   {/* Seal */}
                   <div className="absolute bottom-2 right-2 w-24 h-24 rounded-full border-[5px] border-double border-red-700 flex flex-col items-center justify-center rotate-[-20deg] opacity-90 z-20">
                     <Scale className="w-6 h-6 text-red-700 mb-0.5" strokeWidth={2.5} />
-                    <span className="text-[9px] font-black text-red-700 leading-tight text-center">لجنة<br/>العقوبات</span>
+                    <span className="text-[9px] font-black text-red-700 leading-tight text-center">{punishment.sender}</span>
+                  </div>
+                  
+                  {/* Shipping Label */}
+                  <div className="absolute top-4 left-4 bg-[#fdf8e6] px-3 py-2 rounded shadow-sm border border-[#d4b483] w-40 rotate-[5deg] z-20">
+                    <div className="text-[8px] text-[#8c6b44] font-bold mb-1 border-b border-dashed border-[#8c6b44] pb-1">بيانات الشحن 📄</div>
+                    <div className="text-[9px] text-[#4a3424] mb-1"><b>المرسل:</b> {punishment.sender}</div>
+                    <div className="text-[9px] text-[#4a3424] mb-1"><b>السبب:</b> {punishment.reason}</div>
+                    <div className="text-[8px] text-[#8c6b44] mt-1 pt-1 border-t border-dashed border-[#8c6b44]">التوقيع: {punishment.sender}</div>
                   </div>
                 </div>
               );
@@ -953,11 +988,11 @@ export default function App() {
                 <div className="relative z-10 flex flex-col items-center w-full gap-4">
                   <h4 className="text-xl font-bold text-center">{randomTexts.punishmentTitle}</h4>
                   <div className="flex gap-3 w-full mt-2">
-                    <button onClick={() => handlePunishmentAction(idx, true)} className="flex-1 bg-white text-rose-600 py-3 rounded-xl font-bold text-sm shadow-sm hover:bg-rose-50 transition-colors">أتممت العقاب</button>
-                    <button onClick={() => handlePunishmentAction(idx, false)} className="flex-1 bg-rose-800 text-white py-3 rounded-xl font-bold text-sm hover:bg-rose-900 transition-colors">لم أتمم</button>
+                    <button onClick={() => handlePunishmentAction(idx, true, punishment.id, punishment.type === 'system')} className="flex-1 bg-white text-rose-600 py-3 rounded-xl font-bold text-sm shadow-sm hover:bg-rose-50 transition-colors">أتممت العقاب</button>
+                    <button onClick={() => handlePunishmentAction(idx, false, punishment.id, punishment.type === 'system')} className="flex-1 bg-rose-800 text-white py-3 rounded-xl font-bold text-sm hover:bg-rose-900 transition-colors">لم أتمم</button>
                   </div>
                   {(state.immunityCards || 0) > 0 && (
-                    <button onClick={() => handleUseCardAction(idx)} className="w-full bg-yellow-400 text-yellow-900 py-3 rounded-xl font-bold text-sm shadow-sm hover:bg-yellow-300 transition-colors flex justify-center items-center gap-2">
+                    <button onClick={() => handleUseCardAction(idx, punishment.id, punishment.type === 'system')} className="w-full bg-yellow-400 text-yellow-900 py-3 rounded-xl font-bold text-sm shadow-sm hover:bg-yellow-300 transition-colors flex justify-center items-center gap-2">
                       <Gift className="w-4 h-4" />
                       استخدام كرت إعفاء من العقاب 🎫
                     </button>
@@ -971,7 +1006,8 @@ export default function App() {
                 {content}
               </div>
             );
-          })}
+            });
+          })()}
 
           <div className="flex gap-4 h-32 shrink-0">
             {/* Wallet Box (Right side in RTL) */}
@@ -1057,6 +1093,21 @@ export default function App() {
                 </button>
               </div>
 
+              <div className="border-t border-slate-100 pt-8 flex flex-col gap-3">
+                <h3 className="font-bold text-indigo-600 flex items-center gap-2">
+                  <Settings className="w-5 h-5" />
+                  خيارات المشرف
+                </h3>
+                <button 
+                  onClick={() => {
+                    setShowDashboard(true);
+                    setShowSettings(false);
+                  }}
+                  className="mt-2 w-full flex items-center justify-center gap-2 bg-indigo-50 text-indigo-600 py-3 rounded-xl font-bold text-sm shadow-sm hover:bg-indigo-100 transition-colors"
+                >
+                  التحول إلى مشرف
+                </button>
+              </div>
               <div className="border-t border-slate-100 pt-8 flex flex-col gap-3">
                 <h3 className="font-bold text-rose-600 flex items-center gap-2">
                   <AlertTriangle className="w-5 h-5" />

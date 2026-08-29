@@ -61,7 +61,8 @@ export function CalendarTracker({ history, dailyGoal, currentScore, pendingPunis
     const isToday = date === today;
     const expelled = stats?.failedPunishments ? true : stats?.expelled;
     const resolved = stats?.resolvedPunishments || (stats?.punishmentResolved ? 1 : 0);
-    const punished = stats?.punishedDaily || stats?.punished2Days;
+    const punished2Days = stats?.punished2Days;
+    const punishedDaily = stats?.punishedDaily;
     const completed = stats?.lessonsCompleted || 0;
     
     let boxClass = "w-8 h-8 sm:w-10 sm:h-10 mx-auto rounded-lg flex items-center justify-center text-xs font-bold transition-all cursor-pointer hover:scale-110 active:scale-95 relative ";
@@ -71,8 +72,11 @@ export function CalendarTracker({ history, dailyGoal, currentScore, pendingPunis
         if (expelled) {
             boxClass += "bg-slate-100 border-2 border-slate-800 text-lg shadow-sm";
             content = <>🔪</>;
-        } else if (punished) {
+        } else if (punished2Days) {
             boxClass += "bg-red-100 border-2 border-red-500 text-lg shadow-sm";
+            content = <>📦</>;
+        } else if (punishedDaily) {
+            boxClass += "bg-blue-100 border-2 border-blue-400 text-lg shadow-sm";
             content = <>🔫</>;
         } else if (completed >= dailyGoal * 2) {
             boxClass += "bg-emerald-100 border-2 border-emerald-500 text-emerald-700";
@@ -91,8 +95,11 @@ export function CalendarTracker({ history, dailyGoal, currentScore, pendingPunis
         if (expelled) {
             boxClass += "bg-slate-800 text-white text-lg shadow-sm";
             content = <>🔪</>;
-        } else if (punished) {
+        } else if (punished2Days) {
             boxClass += "bg-red-500 text-white text-lg shadow-sm shadow-red-200";
+            content = <>📦</>;
+        } else if (punishedDaily) {
+            boxClass += "bg-blue-400 text-white text-lg shadow-sm shadow-blue-200";
             content = <>🔫</>;
         } else if (completed >= dailyGoal * 2) {
             boxClass += "bg-emerald-500 text-white shadow-sm shadow-emerald-200";

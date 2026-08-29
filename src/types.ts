@@ -1,3 +1,23 @@
+
+export interface SupervisorPunishment {
+  id: string;
+  reason: string;
+  sender: string;
+  timestamp: number;
+}
+
+export interface LeaderboardEntry {
+  uid: string;
+  displayName: string;
+  weeklyLessons: number;
+  avatarUrl?: string;
+}
+
+export interface LeaderboardSettings {
+  show: boolean;
+  entries: LeaderboardEntry[];
+  lastUpdated: number;
+}
 export interface DailyStats {
   lessonsCompleted: number;
   punishedDaily: boolean;
@@ -48,4 +68,6 @@ export interface AppState {
   trackedUsers?: string[];
   supervisorGifts?: SupervisorGift[];
   supervisorPunishmentReason?: string;
+  supervisorPunishments?: SupervisorPunishment[];
+  leaderboardSettings?: LeaderboardSettings;
 }
