@@ -750,8 +750,8 @@ export default function App() {
 
 
 
-  if (showDashboard && user) {
-    return <SupervisorDashboard onClose={() => setShowDashboard(false)} supervisorId={user.uid} trackedUsers={state.trackedUsers || []} showToast={(msg) => { setToastMessage(msg); setTimeout(() => setToastMessage(''), 3000); }} />;
+  if (showDashboard) {
+    return <SupervisorDashboard onClose={() => setShowDashboard(false)} supervisorId={user?.uid || 'guest'} trackedUsers={state.trackedUsers || []} showToast={(msg) => { setToastMessage(msg); setTimeout(() => setToastMessage(''), 3000); }} />;
   }
 
   const isExpelled = state.expelledUntil && state.expelledUntil > Date.now();
@@ -780,84 +780,95 @@ export default function App() {
           ))}
         </div>
       )}
-      <header className="flex items-center justify-between px-4 md:px-8 py-4 bg-white/80 backdrop-blur-md border-b border-slate-200 shrink-0 sticky top-0 z-50">
-        <div className="flex items-center gap-4 md:gap-6">
-          <div className="flex items-center gap-3">
-            <ProfileMenu user={user} avatarUrl={state.avatarUrl} onLogin={() => setShowAuthModal(true)} onOpenDashboard={() => setShowDashboard(true)} onChangeAvatar={() => setShowAvatarModal(true)} showToast={(msg) => { setToastMessage(msg); setTimeout(() => setToastMessage(''), 3000); }} />
-            <div className="flex flex-col md:flex-row gap-1.5 md:gap-2">
-              <button
-                onClick={() => setShowStats(true)}
-                className="flex items-center justify-center gap-1.5 bg-yellow-50 hover:bg-yellow-100 transition-colors px-2.5 py-0.5 md:px-3 md:py-1 rounded-lg border border-yellow-200 text-yellow-700 shadow-sm"
+            <header className="px-4 md:px-8 py-3 bg-white/80 backdrop-blur-md border-b border-slate-200 shrink-0 sticky top-0 z-50">
+        <div className="flex items-center justify-between w-full">
+          <div className="flex items-center gap-4 md:gap-6">
+            <div className="flex items-center gap-3">
+              <ProfileMenu user={user} avatarUrl={state.avatarUrl} onLogin={() => setShowAuthModal(true)} onOpenDashboard={() => setShowDashboard(true)} onChangeAvatar={() => setShowAvatarModal(true)} showToast={(msg) => { setToastMessage(msg); setTimeout(() => setToastMessage(''), 3000); }} />
+              <div className="flex flex-col md:flex-row gap-1.5 md:gap-2">
+                <button
+                  onClick={() => setShowStats(true)}
+                  className="flex items-center justify-center gap-1.5 bg-yellow-50 hover:bg-yellow-100 transition-colors px-2.5 py-0.5 md:px-3 md:py-1 rounded-lg border border-yellow-200 text-yellow-700 shadow-sm"
+                >
+                  <Trophy className="w-3.5 h-3.5 md:w-4 md:h-4 text-yellow-500" />
+                  <span className="font-black font-mono text-[11px] md:text-sm pt-0.5">{currentScore + (state.points || 0)}</span>
+                </button>
+                
+                <button
+                  onClick={() => setShowStats(true)}
+                  className="flex items-center justify-center gap-1.5 bg-orange-50 hover:bg-orange-100 transition-colors px-2.5 py-0.5 md:px-3 md:py-1 rounded-lg border border-orange-200 text-orange-700 shadow-sm"
+                >
+                  <span className="text-[11px] md:text-sm">🔥</span>
+                  <span className="font-black font-mono text-[11px] md:text-sm pt-0.5">{currentStreak}</span>
+                  {freezesAvailable > 0 && (
+                    <span className="flex items-center gap-1 ml-0.5 pl-1.5 border-l border-orange-200">
+                      <span className="text-[10px] md:text-xs text-blue-500">🧊</span>
+                      <span className="font-bold font-mono text-[10px] md:text-xs text-blue-600 pt-0.5">{freezesAvailable}</span>
+                    </span>
+                  )}
+                </button>
+              </div>
+            </div>
+            
+            <div className="flex gap-2 hidden md:flex">
+              <button 
+                onClick={() => {
+                  setTempGoal(state.dailyGoal || 10);
+                  setShowSettings(true);
+                }} 
+                className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors"
               >
-                <Trophy className="w-3.5 h-3.5 md:w-4 md:h-4 text-yellow-500" />
-                <span className="font-black font-mono text-[11px] md:text-sm pt-0.5">{currentScore + (state.points || 0)}</span>
+                <Settings className="w-5 h-5" />
               </button>
-              
-              <button
-                onClick={() => setShowStats(true)}
-                className="flex items-center justify-center gap-1.5 bg-orange-50 hover:bg-orange-100 transition-colors px-2.5 py-0.5 md:px-3 md:py-1 rounded-lg border border-orange-200 text-orange-700 shadow-sm"
+              <button 
+                onClick={() => setShowInstructions(true)} 
+                className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-500 hover:bg-blue-100 transition-colors"
               >
-                <span className="text-[11px] md:text-sm">🔥</span>
-                <span className="font-black font-mono text-[11px] md:text-sm pt-0.5">{currentStreak}</span>
-                {freezesAvailable > 0 && (
-                  <span className="flex items-center gap-1 ml-0.5 pl-1.5 border-l border-orange-200">
-                    <span className="text-[10px] md:text-xs text-blue-500">🧊</span>
-                    <span className="font-bold font-mono text-[10px] md:text-xs text-blue-600 pt-0.5">{freezesAvailable}</span>
-                  </span>
-                )}
+                <HelpCircle className="w-5 h-5" />
               </button>
             </div>
           </div>
           
-          <div className="flex gap-2 hidden md:flex">
-            <button 
-              onClick={() => {
-                setTempGoal(state.dailyGoal || 10);
-                setShowSettings(true);
-              }} 
-              className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors"
-            >
-              <Settings className="w-5 h-5" />
-            </button>
-            <button 
-              onClick={() => setShowInstructions(true)} 
-              className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-500 hover:bg-blue-100 transition-colors"
-            >
-              <HelpCircle className="w-5 h-5" />
-            </button>
+          {/* Desktop Tabs */}
+          <div className="hidden md:flex gap-2 p-1.5 bg-slate-200/50 rounded-xl mx-auto w-full max-w-sm">
+            <button onClick={() => setActiveTab('home')} className={`flex-1 py-1.5 rounded-lg font-bold transition-all ${activeTab === 'home' ? 'bg-white shadow text-indigo-600' : 'text-slate-500 hover:bg-slate-200'}`}>الرئيسية</button>
+            <button onClick={() => setActiveTab('lessons')} className={`flex-1 py-1.5 rounded-lg font-bold transition-all ${activeTab === 'lessons' ? 'bg-white shadow text-indigo-600' : 'text-slate-500 hover:bg-slate-200'}`}>الدروس</button>
+          </div>
+          
+          <div className="flex gap-2 md:gap-6 items-center">
+            <div className="flex flex-col items-center justify-center bg-red-50 px-3 py-1.5 md:px-4 md:py-2 rounded-xl border border-red-100 min-w-[90px] md:min-w-[120px]">
+              <span className="text-[10px] md:text-xs font-bold text-red-400">منتصف الليل</span>
+              <span className="text-lg md:text-2xl font-black text-red-600 font-mono" dir="ltr">{timeToMidnight}</span>
+            </div>
+
+            <div className="flex flex-col md:hidden gap-1">
+              <button 
+                onClick={() => {
+                  setTempGoal(state.dailyGoal || 10);
+                  setShowSettings(true);
+                }} 
+                className="w-8 h-8 bg-slate-100 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors"
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+              <button 
+                onClick={() => setShowInstructions(true)} 
+                className="w-8 h-8 bg-blue-50 rounded-xl flex items-center justify-center text-blue-500 hover:bg-blue-100 transition-colors"
+              >
+                <HelpCircle className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
         
-        <div className="flex gap-2 md:gap-6 items-center">
-          <div className="flex flex-col items-center justify-center bg-red-50 px-3 py-1.5 md:px-4 md:py-2 rounded-xl border border-red-100 min-w-[90px] md:min-w-[120px]">
-            <span className="text-[10px] md:text-xs font-bold text-red-400">منتصف الليل</span>
-            <span className="text-lg md:text-2xl font-black text-red-600 font-mono" dir="ltr">{timeToMidnight}</span>
-          </div>
-
-          <div className="flex flex-col md:hidden gap-1">
-            <button 
-              onClick={() => {
-                setTempGoal(state.dailyGoal || 10);
-                setShowSettings(true);
-              }} 
-              className="w-8 h-8 bg-slate-100 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors"
-            >
-              <Settings className="w-4 h-4" />
-            </button>
-            <button 
-              onClick={() => setShowInstructions(true)} 
-              className="w-8 h-8 bg-blue-50 rounded-xl flex items-center justify-center text-blue-500 hover:bg-blue-100 transition-colors"
-            >
-              <HelpCircle className="w-4 h-4" />
-            </button>
-          </div>
+        {/* Mobile Tabs */}
+        <div className="md:hidden flex gap-2 p-1.5 bg-slate-200/50 rounded-xl mt-3 w-full">
+          <button onClick={() => setActiveTab('home')} className={`flex-1 py-2 rounded-lg font-bold transition-all ${activeTab === 'home' ? 'bg-white shadow text-indigo-600' : 'text-slate-500 hover:bg-slate-200'}`}>الرئيسية</button>
+          <button onClick={() => setActiveTab('lessons')} className={`flex-1 py-2 rounded-lg font-bold transition-all ${activeTab === 'lessons' ? 'bg-white shadow text-indigo-600' : 'text-slate-500 hover:bg-slate-200'}`}>الدروس</button>
         </div>
       </header>
 
-      <div className="flex gap-2 p-2 bg-slate-200/50 rounded-xl max-w-sm mx-auto mt-4 shrink-0">
-        <button onClick={() => setActiveTab('home')} className={`flex-1 py-2 rounded-lg font-bold transition-all ${activeTab === 'home' ? 'bg-white shadow text-indigo-600' : 'text-slate-500 hover:bg-slate-200'}`}>الرئيسية</button>
-        <button onClick={() => setActiveTab('lessons')} className={`flex-1 py-2 rounded-lg font-bold transition-all ${activeTab === 'lessons' ? 'bg-white shadow text-indigo-600' : 'text-slate-500 hover:bg-slate-200'}`}>الدروس</button>
-      </div>
+      
 
       <main className="flex-1 p-4 md:p-6 flex flex-col gap-6 max-w-7xl mx-auto w-full">
         {activeTab === 'home' && (
@@ -1285,10 +1296,10 @@ export default function App() {
                 if (user) {
                   const { doc, updateDoc } = await import('firebase/firestore');
                   const { db } = await import('./firebase');
-                  await updateDoc(doc(db, 'users', user.uid), {
+                  await updateDoc(doc(db, 'users', user.uid), JSON.parse(JSON.stringify({
                     pendingQuizzes: newPending,
                     completedQuizzes: newCompleted
-                  });
+                  })));
                 } else {
                   setState(prev => ({ ...prev, pendingQuizzes: newPending, completedQuizzes: newCompleted }));
                 }

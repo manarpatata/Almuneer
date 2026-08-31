@@ -58,6 +58,10 @@ export function SupervisorDashboard({ onClose, supervisorId, trackedUsers = [], 
 
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (supervisorId === 'guest') {
+      showToast?.('عذراً، يجب تسجيل الدخول بحساب مشرف لإجراء هذه العملية!');
+      return;
+    }
     const uid = newUserId.trim();
     if (!uid) return;
     if (trackedUsers.includes(uid)) {
@@ -93,6 +97,10 @@ export function SupervisorDashboard({ onClose, supervisorId, trackedUsers = [], 
   };
 
   const handleRemoveUser = (uid: string) => {
+    if (supervisorId === 'guest') {
+      showToast?.('عذراً، يجب تسجيل الدخول بحساب مشرف لإجراء هذه العملية!');
+      return;
+    }
     confirmAction(
       'تأكيد الإزالة',
       'هل أنت متأكد من إزالة هذا المستخدم من قائمتك؟',
@@ -119,6 +127,10 @@ export function SupervisorDashboard({ onClose, supervisorId, trackedUsers = [], 
 
   const handleSendGift = async () => {
     if (!selectedUser) return;
+    if (supervisorId === 'guest') {
+      showToast?.('عذراً، يجب تسجيل الدخول بحساب مشرف لإجراء هذه العملية!');
+      return;
+    }
     try {
       const userRef = doc(db, 'users', selectedUser.id);
       const newGift: SupervisorGift = {
@@ -146,6 +158,10 @@ export function SupervisorDashboard({ onClose, supervisorId, trackedUsers = [], 
 
   const handleSendPunishment = async () => {
     if (!selectedUser) return;
+    if (supervisorId === 'guest') {
+      showToast?.('عذراً، يجب تسجيل الدخول بحساب مشرف لإجراء هذه العملية!');
+      return;
+    }
     try {
       const userRef = doc(db, 'users', selectedUser.id);
       await updateDoc(userRef, {
@@ -184,6 +200,10 @@ export function SupervisorDashboard({ onClose, supervisorId, trackedUsers = [], 
   };
 
   const handleKickUser = (uid: string) => {
+    if (supervisorId === 'guest') {
+      showToast?.('عذراً، يجب تسجيل الدخول بحساب مشرف لإجراء هذه العملية!');
+      return;
+    }
     confirmAction(
       'تأكيد الطرد',
       'هل أنت متأكد من طرد هذا المستخدم لمدة 24 ساعة؟',
@@ -360,6 +380,7 @@ export function SupervisorDashboard({ onClose, supervisorId, trackedUsers = [], 
                 <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 text-sm">
                   <tr>
                     <th className="py-4 px-6 font-bold w-[30%]">المستخدم</th>
+                    <th className="py-4 px-6 font-bold text-center">الإنجاز الأسبوعي</th>
                     <th className="py-4 px-6 font-bold text-center">العقوبات غير المنفذة</th>
                     <th className="py-4 px-6 font-bold text-center">الإجراءات</th>
                   </tr>
@@ -370,6 +391,7 @@ export function SupervisorDashboard({ onClose, supervisorId, trackedUsers = [], 
                     if (!uData) return (
                       <tr key={uid} className="animate-pulse">
                         <td className="py-4 px-6"><div className="h-4 bg-slate-200 rounded w-1/2"></div></td>
+                        <td className="py-4 px-6"><div className="h-4 bg-slate-200 rounded w-8 mx-auto"></div></td>
                         <td className="py-4 px-6"><div className="h-4 bg-slate-200 rounded w-8 mx-auto"></div></td>
                         <td className="py-4 px-6"><div className="h-8 bg-slate-200 rounded w-32 mx-auto"></div></td>
                       </tr>
@@ -394,7 +416,12 @@ export function SupervisorDashboard({ onClose, supervisorId, trackedUsers = [], 
                             </div>
                           </div>
                         </td>
-                        <td className="py-4 px-6 text-center">
+                                                <td className="py-4 px-6 text-center">
+                          <span className="inline-flex items-center justify-center px-3 py-1 bg-blue-50 text-blue-700 font-black rounded-lg">
+                            {getWeeklyLessons(uData.history || {}, getTodayDateString())}
+                          </span>
+                        </td>
+<td className="py-4 px-6 text-center">
                           <span className={`inline-flex items-center justify-center px-3 py-1 font-black rounded-lg ${pendingPunishments > 0 ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-500'}`}>
                             {pendingPunishments}
                           </span>

@@ -28,7 +28,7 @@ export function SupervisorReports({ usersMap, supervisorId }: SupervisorReportsP
         uid,
         displayName: data.displayName || 'مستخدم غير معروف',
         weeklyLessons: getWeeklyLessons(data.history, todayStr),
-        avatarUrl: data.avatarUrl
+        avatarUrl: data.avatarUrl || null
       }))
       .filter(u => u.weeklyLessons > 0)
       .sort((a, b) => b.weeklyLessons - a.weeklyLessons);
@@ -54,6 +54,11 @@ export function SupervisorReports({ usersMap, supervisorId }: SupervisorReportsP
   }, [supervisorId]);
 
   const handleToggleGlobal = async () => {
+    if (supervisorId === 'guest') {
+      // Just toggle locally if guest
+      setShowGlobal(!showGlobal);
+      return;
+    }
     const newState = !showGlobal;
     setShowGlobal(newState);
     
