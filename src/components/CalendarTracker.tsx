@@ -76,8 +76,12 @@ export function CalendarTracker({ history, dailyGoal, currentScore, pendingPunis
             boxClass += "bg-red-100 border-2 border-red-500 text-lg shadow-sm";
             content = <>📦</>;
         } else if (punishedDaily) {
-            boxClass += "bg-blue-100 border-2 border-blue-400 text-lg shadow-sm";
-            content = <>🔫</>;
+            boxClass += "bg-blue-100 border-2 border-blue-400 text-lg shadow-sm relative overflow-hidden";
+            content = <>
+              💧
+              <div className="absolute top-0 right-0 w-1 h-1 bg-blue-500 rounded-full blur-[1px]"></div>
+              <div className="absolute bottom-1 left-1 w-1.5 h-1.5 bg-blue-400 rounded-full blur-[1px]"></div>
+            </>;
         } else if (completed >= dailyGoal * 2) {
             boxClass += "bg-emerald-100 border-2 border-emerald-500 text-emerald-700";
             content = <>{completed}<span className="absolute -top-1.5 -right-1.5 text-[14px]">⭐</span></>;
@@ -99,8 +103,12 @@ export function CalendarTracker({ history, dailyGoal, currentScore, pendingPunis
             boxClass += "bg-red-500 text-white text-lg shadow-sm shadow-red-200";
             content = <>📦</>;
         } else if (punishedDaily) {
-            boxClass += "bg-blue-400 text-white text-lg shadow-sm shadow-blue-200";
-            content = <>🔫</>;
+            boxClass += "bg-blue-400 text-white text-lg shadow-sm shadow-blue-200 relative overflow-hidden";
+            content = <>
+              💧
+              <div className="absolute top-0 right-0 w-1 h-1 bg-blue-200 rounded-full blur-[1px]"></div>
+              <div className="absolute bottom-1 left-1 w-1.5 h-1.5 bg-blue-300 rounded-full blur-[1px]"></div>
+            </>;
         } else if (completed >= dailyGoal * 2) {
             boxClass += "bg-emerald-500 text-white shadow-sm shadow-emerald-200";
             content = <>{completed}<span className="absolute -top-1.5 -right-1.5 text-[14px]">⭐</span></>;

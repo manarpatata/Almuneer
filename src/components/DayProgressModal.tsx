@@ -156,6 +156,9 @@ export function DayProgressModal({ date, stats, history, dailyGoal, currentScore
     if (statuses.includes('failed')) {
       message = "طرد تأديبي 🚪";
       msgColor = "text-slate-800";
+    } else if (completed === 0 && punished) {
+      message = "يتم تفتيقها لعدم مذاكرتها أي درس🔫!";
+      msgColor = "text-blue-500";
     } else if (punished) {
       message = PUNISHED_PHRASES[dateHash % PUNISHED_PHRASES.length];
       msgColor = "text-rose-600";
@@ -251,6 +254,8 @@ export function DayProgressModal({ date, stats, history, dailyGoal, currentScore
                     </span>
                   {expelled ? (
                     <span className="text-4xl" title="طرد تأديبي">🔪</span>
+                  ) : completed === 0 && punished ? (
+                    <span className="text-4xl" title="رش ماء">💧</span>
                   ) : punished || completed < dailyGoal ? (
                     <span className="text-4xl" title="تحت التهديد">🔫</span>
                   ) : null}

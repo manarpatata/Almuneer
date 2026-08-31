@@ -14,7 +14,7 @@ import { WaterGunOverlay } from './components/WaterGunOverlay';
 import { StatsModal } from './components/StatsModal';
 import { WalletModal } from './components/WalletModal';
 import { motion, AnimatePresence } from 'motion/react';
-import { BookOpen, Settings, X, AlertTriangle, RotateCcw, CheckCircle, HelpCircle, Trophy, Gift, Scale, Skull, Search, Shield, Star, Snowflake } from 'lucide-react';
+import { BookOpen, Settings, X, AlertTriangle, RotateCcw, CheckCircle, HelpCircle, Trophy, Gift, Scale, Skull, Search, Shield, Star, Snowflake, FileText } from 'lucide-react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth, db } from './firebase';
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
@@ -29,6 +29,10 @@ export default function App() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [dataLoadedFromCloud, setDataLoadedFromCloud] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
+  const [activeTab, setActiveTab] = useState<'home' | 'lessons'>('home');
+  const [activeQuiz, setActiveQuiz] = useState<any | null>(null);
+  const [quizAnswers, setQuizAnswers] = useState<number[]>([]);
+  const [viewCompletedQuiz, setViewCompletedQuiz] = useState<any | null>(null);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
 
   useEffect(() => {
@@ -253,6 +257,30 @@ export default function App() {
   const [punishmentUIStates, setPunishmentUIStates] = useState<Record<number, 'idle' | 'resolving_done' | 'resolving_failed' | 'resolving_card'>>({});
   const [openedPunishmentBoxes, setOpenedPunishmentBoxes] = useState<Record<number, boolean>>({});
   const punishmentTimeoutRefs = useRef<Record<number, NodeJS.Timeout>>({});
+  const prevPunishmentCount = useRef(0);
+  useEffect(() => {
+    const currentCount = (state.supervisorPunishments || []).length + (state.pendingPunishmentsCount || (state.pendingPunishment ? 1 : 0));
+    if (currentCount > prevPunishmentCount.current) {
+      try {
+        const audioCtx = new (window.AudioContext || (window).webkitAudioContext)();
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        oscillator.type = 'triangle';
+        oscillator.frequency.setValueAtTime(400, audioCtx.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.3);
+        gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        oscillator.start();
+        oscillator.stop(audioCtx.currentTime + 0.3);
+      } catch (e) {
+        // Browser might block audio without interaction
+      }
+    }
+    prevPunishmentCount.current = currentCount;
+  }, [state.supervisorPunishments, state.pendingPunishmentsCount, state.pendingPunishment]);
+
 
   const PUNISHMENT_TITLES = [
     "معاقبة من لجنة العقوبات",
@@ -326,6 +354,7 @@ export default function App() {
   const yesterdayDate = addDays(getTodayDateString(), -1);
   const yesterdayCompleted = state.history[yesterdayDate]?.lessonsCompleted || 0;
   const isYesterdayBeforeStart = yesterdayDate < (state.startDate || state.lastLoginDate);
+  const gotSplashedToday = yesterdayCompleted === 0 && state.history[yesterdayDate]?.punishedDaily;
   
   let currentBoxType = 'default';
   if (state.pendingPunishment) currentBoxType = 'punishment';
@@ -385,6 +414,7 @@ export default function App() {
   };
 
   const handleOpenPunishmentBox = (index: number) => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate([200, 100, 200]);
     setOpenedPunishmentBoxes(prev => ({ ...prev, [index]: true }));
   };
 
@@ -728,6 +758,8 @@ export default function App() {
   
   const mainBgClasses = isExpelled 
     ? "bg-gradient-to-br from-red-50 to-red-100/80 text-red-950" 
+    : gotSplashedToday
+    ? "bg-gradient-to-br from-blue-50 to-cyan-100/80 text-blue-900 relative"
     : "bg-gradient-to-br from-slate-50 to-slate-100/80 text-slate-800";
 
   return (
@@ -741,6 +773,13 @@ export default function App() {
       {showAuthModal && <Auth onClose={() => setShowAuthModal(false)} />}
       
       <SupervisorGiftOverlay gifts={state.supervisorGifts || []} onClaim={handleClaimSupervisorGift} />
+      {gotSplashedToday && (
+        <div className="fixed inset-0 pointer-events-none z-[45] overflow-hidden opacity-40">
+          {Array.from({ length: 20 }).map((_, i) => (
+            <div key={i} className="absolute bg-blue-400 w-1 h-3 rounded-full animate-bounce" style={{ left: `${Math.random() * 100}%`, top: `${Math.random() * 100}%`, animationDuration: `${0.5 + Math.random()}s`, animationDelay: `${Math.random()}s` }}></div>
+          ))}
+        </div>
+      )}
       <header className="flex items-center justify-between px-4 md:px-8 py-4 bg-white/80 backdrop-blur-md border-b border-slate-200 shrink-0 sticky top-0 z-50">
         <div className="flex items-center gap-4 md:gap-6">
           <div className="flex items-center gap-3">
@@ -815,17 +854,44 @@ export default function App() {
         </div>
       </header>
 
-      <main className="flex-1 p-4 md:p-6 flex flex-col-reverse md:flex-row gap-6 max-w-7xl mx-auto w-full">
-        <section className="flex-[1.8] flex flex-col gap-4 h-full">
-          <LessonsList 
-            completedLessons={state.completedLessons} 
-            onToggle={handleToggleLesson} 
-          />
-        </section>
-        
-        <aside className="flex-1 flex flex-col gap-6 pb-6 pr-1">
-          <CalendarTracker history={state.history} dailyGoal={dailyGoal} currentScore={currentScore} pendingPunishment={state.pendingPunishment} pendingPunishmentsCount={state.pendingPunishmentsCount} />
-          {state.leaderboardSettings && <UserLeaderboard settings={state.leaderboardSettings} />}
+      <div className="flex gap-2 p-2 bg-slate-200/50 rounded-xl max-w-sm mx-auto mt-4 shrink-0">
+        <button onClick={() => setActiveTab('home')} className={`flex-1 py-2 rounded-lg font-bold transition-all ${activeTab === 'home' ? 'bg-white shadow text-indigo-600' : 'text-slate-500 hover:bg-slate-200'}`}>الرئيسية</button>
+        <button onClick={() => setActiveTab('lessons')} className={`flex-1 py-2 rounded-lg font-bold transition-all ${activeTab === 'lessons' ? 'bg-white shadow text-indigo-600' : 'text-slate-500 hover:bg-slate-200'}`}>الدروس</button>
+      </div>
+
+      <main className="flex-1 p-4 md:p-6 flex flex-col gap-6 max-w-7xl mx-auto w-full">
+        {activeTab === 'home' && (
+          <div className="flex flex-col gap-6 w-full max-w-2xl mx-auto">
+            <CalendarTracker history={state.history} dailyGoal={dailyGoal} currentScore={currentScore} pendingPunishment={state.pendingPunishment} pendingPunishmentsCount={state.pendingPunishmentsCount} />
+            {state.leaderboardSettings && <UserLeaderboard settings={state.leaderboardSettings} />}
+            
+            {/* Chalkboard for Quizzes */}
+            <div className="bg-emerald-800 rounded-lg border-[12px] border-[#8b5a2b] p-6 shadow-[inset_0_0_20px_rgba(0,0,0,0.5)] shadow-xl relative min-h-[200px]">
+              <div className="absolute top-2 left-1/2 -translate-x-1/2 w-32 h-2 bg-slate-300 rounded-sm opacity-50 blur-[1px]"></div>
+              
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {state.completedQuizzes && state.completedQuizzes.length > 0 && (
+                  state.completedQuizzes.map((quiz, i) => {
+                    const gradeColor = 
+                      quiz.grade === 'A' ? 'text-green-600' :
+                      quiz.grade === 'B' ? 'text-blue-600' :
+                      quiz.grade === 'C' ? 'text-yellow-600' :
+                      quiz.grade === 'D' ? 'text-orange-600' : 'text-red-600';
+                    return (
+                      <div key={i} className="bg-[#fcfaf5] p-3 rounded shadow-md transform rotate-[-3deg] hover:rotate-0 transition-transform cursor-pointer relative border border-slate-200" onClick={() => setViewCompletedQuiz(quiz)}>
+                        <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-red-500 shadow-sm border border-red-700"></div>
+                        <h4 className="font-bold text-slate-800 text-xs mb-2 mt-1 truncate">{quiz.title}</h4>
+                        <div className="flex justify-between items-end">
+                          <span className="text-[10px] text-slate-500 font-bold">{new Date(quiz.timestamp).toLocaleDateString('ar-EG')}</span>
+                          <span className={`font-black text-2xl ${gradeColor}`}>{quiz.grade}</span>
+                        </div>
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+            </div>
+
           
           {Array.from({ length: totalGiftsToday }).map((_, idx) => (
             !openedGiftsBoxes[idx] ? (
@@ -1033,7 +1099,48 @@ export default function App() {
               </div>
             </div>
           </div>
-        </aside>
+        </div>
+        )}
+
+        {activeTab === 'lessons' && (
+          <div className="flex flex-col gap-6 w-full max-w-2xl mx-auto h-full">
+            <div className="flex gap-4 h-32 shrink-0">
+              {/* Status Box */}
+              <div className="flex-[2]">
+                <div className={statusBoxClasses}>
+                  {statusBoxContent}
+                </div>
+              </div>
+              
+              {/* Quizzes Box */}
+              {(state.pendingQuizzes && state.pendingQuizzes.length > 0) ? (
+                <div 
+                  onClick={() => { setActiveQuiz(state.pendingQuizzes[0]); setQuizAnswers(new Array(state.pendingQuizzes[0].questions.length).fill(-1)); }}
+                  className="flex-1 bg-indigo-500 rounded-3xl p-4 text-white flex flex-col justify-center items-center gap-2 relative overflow-hidden shadow-lg shadow-indigo-200/50 cursor-pointer hover:bg-indigo-600 transition-colors"
+                >
+                  <FileText className="w-8 h-8 opacity-90" />
+                  <h4 className="text-sm font-bold text-center">اختبار جديد</h4>
+                  <div className="absolute top-2 right-2 w-3 h-3 bg-red-500 rounded-full border-2 border-indigo-500 animate-pulse"></div>
+                </div>
+              ) : (
+                <div className="flex-1 bg-slate-100 rounded-3xl p-4 text-slate-400 flex flex-col justify-center items-center gap-2 relative overflow-hidden shadow-inner border-2 border-dashed border-slate-200">
+                  <FileText className="w-8 h-8 opacity-50" />
+                  <h4 className="text-xs font-bold text-center opacity-80">لا توجد<br/>اختبارات</h4>
+                </div>
+              )}
+            </div>
+            
+            {gotSplashedToday && (
+              <div className="bg-blue-100 border-2 border-blue-400 text-blue-700 p-4 rounded-xl font-bold text-center mb-4">
+                يتم تفتيقها لعدم مذاكرتها أي درس🔫!
+              </div>
+            )}
+            <LessonsList 
+              completedLessons={state.completedLessons} 
+              onToggle={handleToggleLesson} 
+            />
+          </div>
+        )}
       </main>
 
       <footer className="px-4 md:px-8 py-3 bg-slate-900 text-white/50 text-xs flex justify-between items-center shrink-0">
@@ -1047,6 +1154,157 @@ export default function App() {
         </div>
       </footer>
 
+      
+      {/* View Completed Quiz Modal */}
+      {viewCompletedQuiz && (
+        <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4" dir="rtl">
+          <div className="bg-[#fcfaf5] p-6 md:p-8 rounded-3xl shadow-2xl w-full max-w-2xl flex flex-col gap-6 animate-in zoom-in-95 max-h-[90vh] overflow-y-auto border-2 border-slate-200">
+            <div className="flex justify-between items-start border-b-2 border-slate-200 pb-4 relative">
+              <div className="absolute top-0 right-0 w-16 h-16 bg-red-500/10 rounded-bl-full flex items-center justify-center">
+                <span className={`font-black text-4xl rotate-12 drop-shadow-sm ${
+                  viewCompletedQuiz.grade === 'A' ? 'text-green-600' :
+                  viewCompletedQuiz.grade === 'B' ? 'text-blue-600' :
+                  viewCompletedQuiz.grade === 'C' ? 'text-yellow-600' :
+                  viewCompletedQuiz.grade === 'D' ? 'text-orange-600' : 'text-red-600'
+                }`}>{viewCompletedQuiz.grade}</span>
+              </div>
+              <div>
+                <h3 className="font-black text-2xl text-slate-800 pr-16">{viewCompletedQuiz.title}</h3>
+                <p className="text-slate-500 font-bold mt-1 pr-16">التصحيح بواسطة: {viewCompletedQuiz.sender}</p>
+              </div>
+              <button onClick={() => setViewCompletedQuiz(null)} className="w-10 h-10 bg-slate-100 hover:bg-slate-200 rounded-full flex items-center justify-center text-slate-500 transition-colors z-10">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="space-y-6">
+              {viewCompletedQuiz.questions.map((q, idx) => {
+                const studentAnswer = viewCompletedQuiz.answers[idx];
+                const isCorrect = studentAnswer === q.correctIndex;
+                return (
+                  <div key={idx} className="bg-white border-2 border-slate-200 rounded-2xl p-5 shadow-sm">
+                    <h4 className="font-bold text-slate-800 mb-4">{idx + 1}. {q.question}</h4>
+                    <div className="space-y-2">
+                      {q.options.map((opt, oIdx) => {
+                        const isStudentChoice = studentAnswer === oIdx;
+                        const isActualCorrect = q.correctIndex === oIdx;
+                        
+                        let optClasses = "p-3 rounded-xl border-2 flex justify-between items-center ";
+                        if (isStudentChoice && isActualCorrect) optClasses += "bg-emerald-50 border-emerald-400 text-emerald-800";
+                        else if (isStudentChoice && !isActualCorrect) optClasses += "bg-red-50 border-red-400 text-red-800";
+                        else if (!isStudentChoice && isActualCorrect) optClasses += "bg-emerald-50/50 border-emerald-200 text-emerald-600";
+                        else optClasses += "bg-slate-50 border-slate-200 text-slate-500 opacity-50";
+
+                        return (
+                          <div key={oIdx} className={optClasses}>
+                            <span className="font-bold">{opt}</span>
+                            {isStudentChoice && (
+                              isActualCorrect ? <CheckCircle className="w-5 h-5 text-emerald-500" /> : <X className="w-5 h-5 text-red-500" />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Take Quiz Modal */}
+      {activeQuiz && (
+        <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4" dir="rtl">
+          <div className="bg-white p-6 md:p-8 rounded-3xl shadow-2xl w-full max-w-2xl flex flex-col gap-6 animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center text-indigo-600">
+                  <FileText className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-black text-xl text-slate-800">{activeQuiz.title}</h3>
+                  <p className="text-sm font-bold text-slate-500">مرسل من: {activeQuiz.sender}</p>
+                </div>
+              </div>
+              <button onClick={() => setActiveQuiz(null)} className="w-10 h-10 bg-slate-100 hover:bg-slate-200 rounded-full flex items-center justify-center text-slate-500 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-8 mt-4">
+              {activeQuiz.questions.map((q, idx) => (
+                <div key={idx} className="bg-slate-50 p-6 rounded-2xl border-2 border-slate-200">
+                  <h4 className="font-black text-slate-800 text-lg mb-4">{idx + 1}. {q.question}</h4>
+                  <div className="space-y-3">
+                    {q.options.map((opt, oIdx) => (
+                      <button
+                        key={oIdx}
+                        onClick={() => {
+                          const newAns = [...quizAnswers];
+                          newAns[idx] = oIdx;
+                          setQuizAnswers(newAns);
+                        }}
+                        className={`w-full text-right p-4 rounded-xl border-2 font-bold transition-colors flex justify-between items-center ${
+                          quizAnswers[idx] === oIdx 
+                            ? 'bg-indigo-50 border-indigo-500 text-indigo-700 shadow-sm' 
+                            : 'bg-white border-slate-200 text-slate-600 hover:border-indigo-300'
+                        }`}
+                      >
+                        {opt}
+                        {quizAnswers[idx] === oIdx && <div className="w-3 h-3 rounded-full bg-indigo-500"></div>}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button
+              disabled={quizAnswers.includes(-1)}
+              onClick={async () => {
+                // Calculate grade
+                const correctCount = activeQuiz.questions.reduce((count, q, idx) => count + (q.correctIndex === quizAnswers[idx] ? 1 : 0), 0);
+                const percent = correctCount / activeQuiz.questions.length;
+                let grade = 'F';
+                if (percent === 1) grade = 'A';
+                else if (percent >= 0.8) grade = 'B';
+                else if (percent >= 0.6) grade = 'C';
+                else if (percent >= 0.5) grade = 'D';
+
+                const completedQuiz = {
+                  ...activeQuiz,
+                  answers: quizAnswers,
+                  grade,
+                  timestamp: Date.now()
+                };
+
+                const newPending = (state.pendingQuizzes || []).filter(q => q.id !== activeQuiz.id);
+                const newCompleted = [...(state.completedQuizzes || []), completedQuiz];
+
+                if (user) {
+                  const { doc, updateDoc } = await import('firebase/firestore');
+                  const { db } = await import('./firebase');
+                  await updateDoc(doc(db, 'users', user.uid), {
+                    pendingQuizzes: newPending,
+                    completedQuizzes: newCompleted
+                  });
+                } else {
+                  setState(prev => ({ ...prev, pendingQuizzes: newPending, completedQuizzes: newCompleted }));
+                }
+                
+                setActiveQuiz(null);
+                setToastMessage('تم تسليم الاختبار! ✅');
+                setTimeout(() => setToastMessage(''), 3000);
+              }}
+              className="w-full mt-4 bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-2xl font-bold text-lg shadow-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              تسليم الإجابات
+            </button>
+          </div>
+        </div>
+      )}
+
       <WaterGunOverlay 
         isVisible={showWaterGun} 
         onClose={() => setShowWaterGun(false)} 
@@ -1054,8 +1312,8 @@ export default function App() {
 
       {showSettings && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden" dir="rtl">
-            <div className="flex justify-between items-center p-6 border-b border-slate-100">
+          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl max-h-[90vh] flex flex-col" dir="rtl">
+            <div className="flex justify-between items-center p-6 border-b border-slate-100 shrink-0">
               <h2 className="text-xl font-bold flex items-center gap-2">
                 <Settings className="w-5 h-5 text-slate-400" />
                 الإعدادات
@@ -1068,7 +1326,7 @@ export default function App() {
               </button>
             </div>
             
-            <div className="p-6 flex flex-col gap-8">
+            <div className="p-6 flex flex-col gap-8 overflow-y-auto">
               <div className="flex flex-col gap-3">
                 <label className="font-bold text-slate-700">الحد الأدنى للدروس اليومية</label>
                 <p className="text-xs text-slate-500">عدد الدروس المطلوبة يومياً لتجنب العقاب</p>

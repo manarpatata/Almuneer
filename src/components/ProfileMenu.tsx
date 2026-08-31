@@ -96,16 +96,25 @@ export function ProfileMenu({ user, avatarUrl, onLogin, onOpenDashboard, onChang
                 </button>
               </>
             ) : (
+              <>
               <button
                 onClick={() => {
                   setIsOpen(false);
                   onLogin();
                 }}
-                className="w-full text-right px-4 py-2 text-sm font-bold text-emerald-600 hover:bg-emerald-50 flex items-center gap-2 transition-colors"
+                className="w-full text-right px-4 py-2 text-sm font-bold text-emerald-600 hover:bg-emerald-50 flex items-center gap-2 transition-colors border-b border-slate-100"
               >
                 <LogIn className="w-4 h-4" />
                 تسجيل الدخول
               </button>
+              <button
+                  onClick={() => { setIsOpen(false); onOpenDashboard && onOpenDashboard(); }}
+                  className="w-full text-right px-4 py-2 text-sm font-bold text-indigo-600 hover:bg-indigo-50 flex items-center gap-2 transition-colors"
+                >
+                  <ShieldCheck className="w-4 h-4" />
+                  لوحة المشرف
+              </button>
+              </>
             )}
           </motion.div>
         )}

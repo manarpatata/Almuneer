@@ -76,7 +76,7 @@ export function Auth({ onClose }: AuthProps) {
 
   return (
     <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4" dir="rtl">
-      <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-md border-4 border-slate-100 relative">
+      <div className="bg-white p-6 md:p-8 rounded-3xl shadow-xl w-full max-w-md border-4 border-slate-100 relative max-h-[90vh] overflow-y-auto">
         {onClose && (
           <button 
             onClick={onClose}
@@ -116,6 +116,7 @@ export function Auth({ onClose }: AuthProps) {
                 placeholder="email@example.com"
                 dir="ltr"
                 required
+                autoFocus
               />
             </div>
           </div>

@@ -38,6 +38,30 @@ export interface SupervisorGift {
   giftType?: 'points' | 'freeze' | 'pardon';
 }
 
+export interface QuizQuestion {
+  question: string;
+  options: string[];
+  correctIndex: number;
+}
+
+export interface Quiz {
+  id: string;
+  title: string;
+  questions: QuizQuestion[];
+  sender: string;
+  timestamp: number;
+}
+
+export interface CompletedQuiz {
+  id: string;
+  title: string;
+  questions: QuizQuestion[];
+  answers: number[];
+  grade: string;
+  sender: string;
+  timestamp: number;
+}
+
 export interface AppState {
   completedLessons: string[];
   khatmatCount: number;
@@ -70,4 +94,6 @@ export interface AppState {
   supervisorPunishmentReason?: string;
   supervisorPunishments?: SupervisorPunishment[];
   leaderboardSettings?: LeaderboardSettings;
+  pendingQuizzes?: Quiz[];
+  completedQuizzes?: CompletedQuiz[];
 }

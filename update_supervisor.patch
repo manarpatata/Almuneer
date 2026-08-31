@@ -1,0 +1,70 @@
+--- src/components/SupervisorDashboard.tsx
++++ src/components/SupervisorDashboard.tsx
+@@ -4,7 +4,7 @@
+ import { db } from '../firebase';
+ import { AppState, SupervisorGift } from '../types';
+-import { Users, Search, Gift, Skull, ShieldBan, X, AlertTriangle, ShieldCheck, ArrowRight, UserPlus, Trash2 } from 'lucide-react';
++import { Users, Search, Gift, Skull, ShieldBan, X, AlertTriangle, ShieldCheck, ArrowRight, UserPlus, Trash2, FileText, CheckCircle2, Circle } from 'lucide-react';
+ import { calculateTotalScore, getWeeklyLessons, getTodayDateString } from '../utils';
+ import { SupervisorReports } from './SupervisorReports';
+ 
+@@ -23,6 +23,8 @@
+   const [showLeaderboard, setShowLeaderboard] = useState(false);
+   const [toastMessage, setToastMessage] = useState("");
++  const [showQuizModal, setShowQuizModal] = useState(false);
++  const [quizTitle, setQuizTitle] = useState('');
++  const [quizQuestions, setQuizQuestions] = useState([{ question: '', options: ['', ''], correctIndex: 0 }]);
+ 
+   const displayToast = (msg: string) => {
+@@ -165,6 +167,41 @@
+     }
+   };
+ 
++  const handleAddQuestion = () => {
++    setQuizQuestions([...quizQuestions, { question: '', options: ['', ''], correctIndex: 0 }]);
++  };
++
++  const handleAddOption = (qIndex: number) => {
++    const newQs = [...quizQuestions];
++    newQs[qIndex].options.push('');
++    setQuizQuestions(newQs);
++  };
++
++  const handleSendQuiz = async () => {
++    if (!quizTitle.trim()) return displayToast('الرجاء كتابة عنوان الاختبار');
++    if (quizQuestions.some(q => !q.question.trim() || q.options.some(o => !o.trim()))) {
++      return displayToast('الرجاء تعبئة جميع الأسئلة والخيارات');
++    }
++
++    try {
++      const quiz = {
++        id: Date.now().toString(),
++        title: quizTitle,
++        questions: quizQuestions,
++        sender: 'المشرف',
++        timestamp: Date.now()
++      };
++
++      await Promise.all(trackedUsers.map(uid => 
++        updateDoc(doc(db, 'users', uid), { pendingQuizzes: arrayUnion(quiz) })
++      ));
++      setShowQuizModal(false);
++      setQuizTitle('');
++      setQuizQuestions([{ question: '', options: ['', ''], correctIndex: 0 }]);
++      displayToast('تم إرسال الاختبار لجميع الطلاب بنجاح! 📝');
++    } catch (e) {
++      displayToast('حدث خطأ أثناء إرسال الاختبار');
++    }
++  };
++
+   const filteredUsers = trackedUsers.filter(uid => {
+     const data = usersMap[uid];
+@@ -218,6 +255,10 @@
+             </button>
++            <button onClick={() => setShowQuizModal(true)} className="flex items-center gap-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-4 py-2 rounded-xl text-sm font-bold transition-colors">
++              <FileText className="w-4 h-4" />
++              <span className="hidden sm:inline">إرسال اختبار</span>
++            </button>
+             <button onClick={() => setShowAddInput(true)} className="flex items-center gap-2 bg-indigo-600 text-white hover:bg-indigo-700 px-4 py-2 rounded-xl text-sm font-bold transition-colors">
+               <UserPlus className="w-4 h-4" />
+               <span className="hidden sm:inline">إضافة مستخدم</span>

@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { doc, getDoc, updateDoc, onSnapshot, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { db } from '../firebase';
 import { AppState, SupervisorGift } from '../types';
-import { Users, Search, Gift, Skull, ShieldBan, X, AlertTriangle, ShieldCheck, ArrowRight, UserPlus, Trash2 } from 'lucide-react';
+import { Users, Search, Gift, Skull, ShieldBan, X, AlertTriangle, ShieldCheck, ArrowRight, UserPlus, Trash2, FileText, CheckCircle2, Circle, Plus } from 'lucide-react';
 import { calculateTotalScore, getWeeklyLessons, getTodayDateString } from '../utils';
+import { UserLeaderboard } from './UserLeaderboard';
 import { SupervisorReports } from './SupervisorReports';
 
 export function SupervisorDashboard({ onClose, supervisorId, trackedUsers = [], showToast }: { onClose: () => void, supervisorId: string, trackedUsers?: string[], showToast?: (msg: string) => void }) {
@@ -21,6 +22,20 @@ export function SupervisorDashboard({ onClose, supervisorId, trackedUsers = [], 
   const [showPunishModal, setShowPunishModal] = useState(false);
   const [punishReason, setPunishReason] = useState('');
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+
+  // Quiz state
+  const [showQuizModal, setShowQuizModal] = useState(false);
+  const [quizTitle, setQuizTitle] = useState('');
+  const [quizQuestions, setQuizQuestions] = useState([{ question: '', options: ['', ''], correctIndex: 0 }]);
+
+  const displayToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(''), 3000);
+  };
+  
+  // Custom Confirm Dialog State
+  const [confirmDialog, setConfirmDialog] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void } | null>(null);
 
   
   // Gift form
@@ -73,8 +88,19 @@ export function SupervisorDashboard({ onClose, supervisorId, trackedUsers = [], 
     }
   };
 
-  const handleRemoveUser = async (uid: string) => {
-    if (!confirm('هل أنت متأكد من إزالة هذا المستخدم من قائمتك؟')) return;
+  const confirmAction = (title: string, message: string, onConfirm: () => void) => {
+    setConfirmDialog({ isOpen: true, title, message, onConfirm });
+  };
+
+  const handleRemoveUser = (uid: string) => {
+    confirmAction(
+      'تأكيد الإزالة',
+      'هل أنت متأكد من إزالة هذا المستخدم من قائمتك؟',
+      () => executeRemoveUser(uid)
+    );
+  };
+
+  const executeRemoveUser = async (uid: string) => {
     try {
       await updateDoc(doc(db, 'users', supervisorId), {
         trackedUsers: arrayRemove(uid)
@@ -84,9 +110,10 @@ export function SupervisorDashboard({ onClose, supervisorId, trackedUsers = [], 
         delete next[uid];
         return next;
       });
+      displayToast('تم إزالة المستخدم من القائمة بنجاح!');
     } catch (e) {
       console.error(e);
-      showToast ? showToast('حدث خطأ أثناء الإزالة') : alert('حدث خطأ أثناء الإزالة');
+      displayToast('حدث خطأ أثناء الإزالة');
     }
   };
 
@@ -108,12 +135,14 @@ export function SupervisorDashboard({ onClose, supervisorId, trackedUsers = [], 
       await updateDoc(userRef, { supervisorGifts: updatedGifts });
       
       setShowGiftModal(false);
-      showToast ? showToast('تم إرسال الهدية بنجاح! ✨') : alert('تم إرسال الهدية بنجاح!');
+      displayToast('تم إرسال الهدية بنجاح! ✨');
     } catch (e) {
       console.error(e);
-      showToast ? showToast('حدث خطأ أثناء الإرسال') : alert('حدث خطأ أثناء الإرسال');
+      displayToast('حدث خطأ أثناء الإرسال');
     }
   };
+
+  const [punishSender, setPunishSender] = useState('المشرف');
 
   const handleSendPunishment = async () => {
     if (!selectedUser) return;
@@ -123,17 +152,18 @@ export function SupervisorDashboard({ onClose, supervisorId, trackedUsers = [], 
         supervisorPunishments: arrayUnion({
           id: Date.now().toString(),
           reason: punishReason || 'عقاب من المشرف',
-          sender: 'المشرف',
+          sender: punishSender || 'المشرف',
           timestamp: Date.now()
         })
       });
       
       setShowPunishModal(false);
       setPunishReason('');
-      showToast ? showToast('تم إرسال العقوبة بنجاح! 💀') : alert('تم إرسال العقوبة بنجاح!');
+      setPunishSender('المشرف');
+      displayToast('تم إرسال العقوبة بنجاح! 💀');
     } catch (e) {
       console.error(e);
-      showToast ? showToast('حدث خطأ أثناء الإرسال') : alert('حدث خطأ أثناء الإرسال');
+      displayToast('حدث خطأ أثناء الإرسال');
     }
   };
 
@@ -146,24 +176,88 @@ export function SupervisorDashboard({ onClose, supervisorId, trackedUsers = [], 
       await updateDoc(userRef, { points: newPoints });
       
       setShowPointsModal(false);
-      showToast ? showToast('تم تعديل النقاط بنجاح! 🌟') : alert('تم تعديل النقاط بنجاح!');
+      displayToast('تم تعديل النقاط بنجاح! 🌟');
     } catch (e) {
       console.error(e);
-      showToast ? showToast('حدث خطأ أثناء تعديل النقاط') : alert('حدث خطأ أثناء تعديل النقاط');
+      displayToast('حدث خطأ أثناء تعديل النقاط');
     }
   };
 
-  const handleKickUser = async (uid: string) => {
-    if (!confirm(`هل أنت متأكد من طرد هذا المستخدم لمدة 24 ساعة؟`)) return;
+  const handleKickUser = (uid: string) => {
+    confirmAction(
+      'تأكيد الطرد',
+      'هل أنت متأكد من طرد هذا المستخدم لمدة 24 ساعة؟',
+      () => executeKickUser(uid)
+    );
+  };
+
+  const executeKickUser = async (uid: string) => {
     try {
       const userRef = doc(db, 'users', uid);
       const expelledUntil = Date.now() + 24 * 60 * 60 * 1000; // 24 hours from now
       await updateDoc(userRef, { expelledUntil });
       
-      showToast ? showToast('تم تطبيق الطرد لمدة 24 ساعة بنجاح! 🚫') : alert('تم تطبيق الطرد لمدة 24 ساعة بنجاح!');
+      displayToast('تم تطبيق الطرد لمدة 24 ساعة بنجاح! 🚫');
     } catch (e) {
       console.error(e);
-      showToast ? showToast('حدث خطأ أثناء الطرد') : alert('حدث خطأ أثناء الطرد');
+      displayToast('حدث خطأ أثناء الطرد');
+    }
+  };
+
+  const handleAddQuestion = () => {
+    setQuizQuestions([...quizQuestions, { question: '', options: ['', ''], correctIndex: 0 }]);
+  };
+
+  const handleAddOption = (qIndex: number) => {
+    const newQs = [...quizQuestions];
+    newQs[qIndex].options.push('');
+    setQuizQuestions(newQs);
+  };
+
+  const handleUpdateQuestion = (qIndex: number, val: string) => {
+    const newQs = [...quizQuestions];
+    newQs[qIndex].question = val;
+    setQuizQuestions(newQs);
+  };
+
+  const handleUpdateOption = (qIndex: number, oIndex: number, val: string) => {
+    const newQs = [...quizQuestions];
+    newQs[qIndex].options[oIndex] = val;
+    setQuizQuestions(newQs);
+  };
+
+  const handleSetCorrect = (qIndex: number, oIndex: number) => {
+    const newQs = [...quizQuestions];
+    newQs[qIndex].correctIndex = oIndex;
+    setQuizQuestions(newQs);
+  };
+
+  const handleSendQuiz = async () => {
+    if (!quizTitle.trim()) return displayToast('الرجاء كتابة عنوان الاختبار');
+    if (quizQuestions.some(q => !q.question.trim() || q.options.some(o => !o.trim()))) {
+      return displayToast('الرجاء تعبئة جميع الأسئلة والخيارات');
+    }
+
+    try {
+      const quiz = {
+        id: Date.now().toString(),
+        title: quizTitle,
+        questions: quizQuestions,
+        sender: 'المشرف',
+        timestamp: Date.now()
+      };
+
+      await Promise.all(trackedUsers.map(uid => 
+        updateDoc(doc(db, 'users', uid), { pendingQuizzes: arrayUnion(quiz) })
+      ));
+      
+      setShowQuizModal(false);
+      setQuizTitle('');
+      setQuizQuestions([{ question: '', options: ['', ''], correctIndex: 0 }]);
+      displayToast('تم إرسال الاختبار لجميع الطلاب بنجاح! 📝');
+    } catch (e) {
+      console.error(e);
+      displayToast('حدث خطأ أثناء إرسال الاختبار');
     }
   };
 
@@ -181,13 +275,16 @@ export function SupervisorDashboard({ onClose, supervisorId, trackedUsers = [], 
               <p className="text-xs font-bold text-slate-500">إدارة المستخدمين التابعين لك</p>
             </div>
           </div>
-          <button 
-            onClick={onClose}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-colors"
-          >
-            <ArrowRight className="w-4 h-4" />
-            <span className="hidden sm:inline">العودة للتطبيق</span>
-          </button>
+          <div className="flex items-center gap-2 sm:gap-4">
+            
+            <button 
+              onClick={onClose}
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-colors"
+            >
+              <ArrowRight className="w-4 h-4" />
+              <span className="hidden sm:inline">العودة للتطبيق</span>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -263,7 +360,6 @@ export function SupervisorDashboard({ onClose, supervisorId, trackedUsers = [], 
                 <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 text-sm">
                   <tr>
                     <th className="py-4 px-6 font-bold w-[30%]">المستخدم</th>
-                    <th className="py-4 px-6 font-bold text-center">النقاط</th>
                     <th className="py-4 px-6 font-bold text-center">العقوبات غير المنفذة</th>
                     <th className="py-4 px-6 font-bold text-center">الإجراءات</th>
                   </tr>
@@ -274,7 +370,6 @@ export function SupervisorDashboard({ onClose, supervisorId, trackedUsers = [], 
                     if (!uData) return (
                       <tr key={uid} className="animate-pulse">
                         <td className="py-4 px-6"><div className="h-4 bg-slate-200 rounded w-1/2"></div></td>
-                        <td className="py-4 px-6"><div className="h-4 bg-slate-200 rounded w-8 mx-auto"></div></td>
                         <td className="py-4 px-6"><div className="h-4 bg-slate-200 rounded w-8 mx-auto"></div></td>
                         <td className="py-4 px-6"><div className="h-8 bg-slate-200 rounded w-32 mx-auto"></div></td>
                       </tr>
@@ -297,20 +392,6 @@ export function SupervisorDashboard({ onClose, supervisorId, trackedUsers = [], 
                               </div>
                               <div className="text-xs text-slate-500 font-mono mt-0.5">{uid}</div>
                             </div>
-                          </div>
-                        </td>
-                        <td className="py-4 px-6 text-center">
-                          <div className="flex items-center justify-center gap-2">
-                            <span className="inline-flex items-center justify-center px-3 py-1 bg-indigo-50 text-indigo-700 font-black rounded-lg">
-                              {calculateTotalScore(uData)}
-                            </span>
-                            <button 
-                              onClick={() => { setSelectedUser({ id: uid, data: uData }); setPointsChange(0); setShowPointsModal(true); }}
-                              className="w-7 h-7 rounded bg-slate-100 text-slate-600 hover:bg-indigo-100 hover:text-indigo-600 flex items-center justify-center transition-colors font-bold text-lg"
-                              title="تعديل النقاط"
-                            >
-                              ±
-                            </button>
                           </div>
                         </td>
                         <td className="py-4 px-6 text-center">
@@ -359,7 +440,189 @@ export function SupervisorDashboard({ onClose, supervisorId, trackedUsers = [], 
             </div>
           )}
         </div>
+
+        
+        {/* Champions Board */}
+        {(() => {
+          const sortedUsers = trackedUsers.map(uid => ({ name: usersMap[uid]?.displayName || 'بدون اسم', score: calculateTotalScore(usersMap[uid] || {} as any) })).sort((a,b) => b.score - a.score);
+          const leaderboardSettings = { show: true, entries: sortedUsers };
+          return <UserLeaderboard settings={leaderboardSettings} />;
+        })()}
+
+        {/* Create Quiz Section */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mt-8">
+          <div className="p-6 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+             <div className="flex items-center gap-3">
+               <FileText className="w-6 h-6 text-indigo-500" />
+               <div>
+                 <h2 className="text-lg font-black text-slate-800">إنشاء اختبار جديد</h2>
+                 <p className="text-sm font-bold text-slate-500">إنشاء اختبار وإرساله لجميع الطلاب</p>
+               </div>
+             </div>
+          </div>
+          <div className="p-6">
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">عنوان الاختبار</label>
+                <input 
+                  type="text" 
+                  value={quizTitle}
+                  onChange={(e) => setQuizTitle(e.target.value)}
+                  className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl py-3 px-4 focus:outline-none focus:border-indigo-500 transition-colors"
+                  placeholder="مثال: اختبار في الحزب الأول..."
+                />
+              </div>
+
+              <div className="space-y-8">
+                {quizQuestions.map((q, qIndex) => (
+                  <div key={qIndex} className="bg-slate-50 p-6 rounded-2xl border-2 border-slate-200">
+                    <div className="flex justify-between items-center mb-4">
+                      <label className="block text-sm font-black text-slate-800">السؤال {qIndex + 1}</label>
+                      {quizQuestions.length > 1 && (
+                        <button 
+                          onClick={() => setQuizQuestions(quizQuestions.filter((_, i) => i !== qIndex))}
+                          className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                    <textarea
+                      value={q.question}
+                      onChange={(e) => handleUpdateQuestion(qIndex, e.target.value)}
+                      className="w-full bg-white border-2 border-slate-200 rounded-xl py-3 px-4 focus:outline-none focus:border-indigo-500 transition-colors mb-4 h-24 resize-none"
+                      placeholder="اكتب السؤال هنا..."
+                    />
+                    
+                    <div className="space-y-3">
+                      <label className="block text-xs font-bold text-slate-500">الخيارات (اختر الإجابة الصحيحة)</label>
+                      {q.options.map((opt, oIndex) => (
+                        <div key={oIndex} className="flex items-center gap-3">
+                          <button 
+                            onClick={() => handleSetCorrect(qIndex, oIndex)}
+                            className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-colors ${q.correctIndex === oIndex ? 'bg-emerald-500 text-white shadow-md' : 'bg-white border-2 border-slate-300 text-slate-300 hover:border-emerald-500 hover:text-emerald-500'}`}
+                          >
+                            {q.correctIndex === oIndex ? <CheckCircle2 className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
+                          </button>
+                          <input 
+                            type="text" 
+                            value={opt}
+                            onChange={(e) => handleUpdateOption(qIndex, oIndex, e.target.value)}
+                            className={`flex-1 bg-white border-2 rounded-xl py-2 px-4 focus:outline-none transition-colors ${q.correctIndex === oIndex ? 'border-emerald-400' : 'border-slate-200 focus:border-indigo-500'}`}
+                            placeholder={`الخيار ${oIndex + 1}`}
+                          />
+                          {q.options.length > 2 && (
+                            <button 
+                              onClick={() => {
+                                const newQs = [...quizQuestions];
+                                newQs[qIndex].options = newQs[qIndex].options.filter((_, i) => i !== oIndex);
+                                if (newQs[qIndex].correctIndex === oIndex) newQs[qIndex].correctIndex = 0;
+                                else if (newQs[qIndex].correctIndex > oIndex) newQs[qIndex].correctIndex--;
+                                setQuizQuestions(newQs);
+                              }}
+                              className="text-slate-400 hover:text-red-500 p-2"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      <button 
+                        onClick={() => handleAddOption(qIndex)}
+                        className="text-indigo-600 text-sm font-bold flex items-center gap-1 hover:underline mt-2 px-2"
+                      >
+                        <Plus className="w-4 h-4" />
+                        إضافة خيار
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <button 
+                onClick={handleAddQuestion}
+                className="w-full py-4 border-2 border-dashed border-slate-300 text-slate-500 font-bold rounded-2xl hover:bg-slate-50 hover:border-indigo-400 hover:text-indigo-600 transition-colors flex items-center justify-center gap-2"
+              >
+                <Plus className="w-5 h-5" />
+                إضافة سؤال جديد
+              </button>
+            </div>
+
+            <div className="flex gap-3 pt-6 mt-6 border-t border-slate-100">
+              <button 
+                onClick={handleSendQuiz}
+                className="flex-1 py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-md transition-colors flex items-center justify-center gap-2"
+              >
+                <FileText className="w-5 h-5" />
+                إرسال الاختبار للكل
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Completed Quizzes Section */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mt-8">
+          <div className="p-6 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
+            <FileText className="w-5 h-5 text-indigo-500" />
+            <h2 className="text-lg font-black text-slate-800">إجابات الطلاب على الاختبارات</h2>
+          </div>
+          <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {(() => {
+              const allCompleted = trackedUsers.flatMap(uid => {
+                const uData = usersMap[uid];
+                if (!uData || !uData.completedQuizzes) return [];
+                return uData.completedQuizzes.map(cq => ({ ...cq, studentName: uData.displayName || 'بدون اسم' }));
+              }).sort((a, b) => b.timestamp - a.timestamp);
+
+              if (allCompleted.length === 0) {
+                return <div className="col-span-full text-center text-slate-500 py-8 font-bold">لا توجد إجابات بعد.</div>;
+              }
+
+              return allCompleted.map((quiz, i) => {
+                const gradeColor = 
+                  quiz.grade === 'A' ? 'text-emerald-600' :
+                  quiz.grade === 'B' ? 'text-blue-600' :
+                  quiz.grade === 'C' ? 'text-yellow-600' :
+                  quiz.grade === 'D' ? 'text-orange-600' : 'text-red-600';
+
+                return (
+                  <div key={i} className="bg-[#fcfaf5] border-2 border-slate-200 rounded-xl p-6 shadow-sm relative overflow-hidden flex flex-col gap-4">
+                    <div className="absolute top-0 right-0 w-16 h-16 bg-red-500/10 rounded-bl-full flex items-center justify-center">
+                      <span className={`font-black text-3xl rotate-12 ${gradeColor} drop-shadow-sm`}>{quiz.grade}</span>
+                    </div>
+                    <div>
+                      <h4 className="font-black text-slate-800 text-lg mb-1 pr-12">{quiz.title}</h4>
+                      <p className="text-sm font-bold text-slate-500">الطالب: <span className="text-indigo-600">{quiz.studentName}</span></p>
+                    </div>
+                    <div className="space-y-4 mt-2">
+                      {quiz.questions.map((q, idx) => {
+                        const studentAnswer = quiz.answers[idx];
+                        const isCorrect = studentAnswer === q.correctIndex;
+                        return (
+                          <div key={idx} className="text-sm border-t border-dashed border-slate-200 pt-3">
+                            <p className="font-bold text-slate-700 mb-2">{idx + 1}. {q.question}</p>
+                            <p className="text-slate-600 flex items-center gap-2">
+                              {isCorrect ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <X className="w-4 h-4 text-red-500" />}
+                              <span className={isCorrect ? 'font-bold text-emerald-700' : 'text-red-600 line-through'}>{q.options[studentAnswer]}</span>
+                            </p>
+                            {!isCorrect && (
+                              <p className="text-emerald-600 font-bold mt-1 text-xs bg-emerald-50 p-1.5 rounded inline-block">
+                                الصحيح: {q.options[q.correctIndex]}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              });
+            })()}
+          </div>
+        </div>
       </main>
+
+      
 
       {/* Gift Modal */}
       {showGiftModal && selectedUser && (
@@ -440,6 +703,28 @@ export function SupervisorDashboard({ onClose, supervisorId, trackedUsers = [], 
               </p>
             </div>
 
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">اسم المشرف (المرسل)</label>
+                <input 
+                  type="text" 
+                  value={punishSender}
+                  onChange={(e) => setPunishSender(e.target.value)}
+                  className="w-full bg-amber-50 border-2 border-amber-200 rounded-xl py-3 px-4 focus:outline-none focus:border-amber-500 transition-colors"
+                  placeholder="اكتب اسمك هنا..."
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">سبب العقوبة</label>
+                <textarea
+                  value={punishReason}
+                  onChange={(e) => setPunishReason(e.target.value)}
+                  className="w-full bg-amber-50 border-2 border-amber-200 rounded-xl py-3 px-4 focus:outline-none focus:border-amber-500 transition-colors h-24 resize-none"
+                  placeholder="مثال: عدم كتابة الفوائد..."
+                />
+              </div>
+            </div>
+
             <div className="flex items-center justify-end gap-3">
               <button 
                 onClick={() => setShowPunishModal(false)}
@@ -508,7 +793,37 @@ export function SupervisorDashboard({ onClose, supervisorId, trackedUsers = [], 
         </div>
       )}
 
+      {/* Confirm Dialog */}
+      {confirmDialog && (
+        <div className="fixed inset-0 z-[220] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm flex flex-col gap-4 animate-in zoom-in-95">
+            <div className="flex items-center gap-3 text-slate-800">
+              <AlertTriangle className="w-6 h-6 text-amber-500" />
+              <h3 className="font-bold text-lg">{confirmDialog.title}</h3>
+            </div>
+            <p className="text-sm font-bold text-slate-600">{confirmDialog.message}</p>
+            <div className="flex gap-3 w-full mt-2">
+              <button onClick={() => { confirmDialog.onConfirm(); setConfirmDialog(null); }} className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl text-sm font-bold transition-colors">نعم، متأكد</button>
+              <button onClick={() => setConfirmDialog(null)} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 rounded-xl text-sm font-bold transition-colors">إلغاء</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {toastMessage && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-6 py-4 rounded-2xl shadow-2xl z-[300] flex items-center gap-3 animate-in slide-in-from-top-10">
+          <ShieldCheck className="w-5 h-5 text-emerald-400" />
+          <span className="font-bold text-sm whitespace-nowrap">{toastMessage}</span>
+        </div>
+      )}
+
       <SupervisorReports usersMap={usersMap} supervisorId={supervisorId} />
+{/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-full shadow-xl font-bold z-[300] animate-in slide-in-from-bottom-5">
+          {toastMessage}
+        </div>
+      )}
     </div>
   );
 }

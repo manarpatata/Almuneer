@@ -48,8 +48,8 @@ export function WaterGunOverlay({ isVisible, onClose }: { isVisible: boolean; on
               🔫
             </div>
             <h2 className="text-2xl font-bold text-blue-900 mb-2">رشة ماء! 💦</h2>
-            <p className="text-blue-700 mb-6 font-medium text-lg">
-              يتم تفتيقك لعدم مذاكرتك بالأمس! لا تدع الكسل يغلبك اليوم!
+            <p className="text-blue-700 mb-6 font-bold text-lg">
+              يتم تفتيقها لعدم مذاكرتها أي درس🔫!
             </p>
             <button 
               onClick={onClose}
