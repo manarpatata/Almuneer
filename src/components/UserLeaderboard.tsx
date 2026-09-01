@@ -11,7 +11,7 @@ export function UserLeaderboard({ settings }: { settings: LeaderboardSettings })
       
       <div className="flex items-center gap-3 mb-8 justify-center">
         <Trophy className="w-8 h-8 text-amber-500" />
-        <h2 className="text-2xl font-black text-slate-800">أبطال الأسبوع 👑</h2>
+        <h2 className="text-2xl font-black text-slate-800">أبطال الأسبوع</h2>
       </div>
       
       <div className="flex flex-col gap-3">

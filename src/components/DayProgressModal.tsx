@@ -57,10 +57,11 @@ const GOOD_PHRASES = [
   "تحفة 🖼️"
 ];
 const EXCELLENT_PHRASES = [
-  ...GOOD_PHRASES,
-  "أذكى مخلوقة على وجه الأرض 🌍",
-  "امبراطورة الاجتهاد بلا منافس 🏰",
-  "أعظم من الأساطير نفسها 🐉"
+  "أشطر شطور 🌟",
+  "فخر مجرة درب الشمبعانة 🌌😎",
+  "الأفضل في الكوكب 🌍👑",
+  "east and west you're the best 🚀✨",
+  "أحسن وحدة في العمان 🇴🇲💖"
 ];
 const PUNISHMENT_COMPLETED_PHRASES = [
   "انتهت العقوبة رسميًا ✅",

@@ -4,7 +4,7 @@ import { db } from '../firebase';
 import { AppState, SupervisorGift } from '../types';
 import { Users, Search, Gift, Skull, ShieldBan, X, AlertTriangle, ShieldCheck, ArrowRight, UserPlus, Trash2, FileText, CheckCircle2, Circle, Plus } from 'lucide-react';
 import { calculateTotalScore, getWeeklyLessons, getTodayDateString } from '../utils';
-import { UserLeaderboard } from './UserLeaderboard';
+
 import { SupervisorReports } from './SupervisorReports';
 
 export function SupervisorDashboard({ onClose, supervisorId, trackedUsers = [], showToast }: { onClose: () => void, supervisorId: string, trackedUsers?: string[], showToast?: (msg: string) => void }) {
@@ -282,90 +282,60 @@ export function SupervisorDashboard({ onClose, supervisorId, trackedUsers = [], 
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-800" dir="rtl">
-      {/* Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center">
-              <ShieldCheck className="w-6 h-6" />
-            </div>
-            <div>
-              <h1 className="text-xl font-black text-slate-800 leading-tight">لوحة المشرف</h1>
-              <p className="text-xs font-bold text-slate-500">إدارة المستخدمين التابعين لك</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 sm:gap-4">
-            
-            <button 
-              onClick={onClose}
-              className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-colors"
-            >
-              <ArrowRight className="w-4 h-4" />
-              <span className="hidden sm:inline">العودة للتطبيق</span>
-            </button>
-          </div>
-        </div>
-      </header>
+    <div className="flex flex-col font-sans text-slate-800 w-full" dir="rtl">
+      
 
       {/* Main Content */}
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
-        {/* Add User Section */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-black text-slate-800 flex items-center gap-2">
-              <UserPlus className="w-5 h-5 text-indigo-500" />
-              إضافة مستخدم جديد للقائمة
-            </h2>
-            {!showAddInput && (
-              <button 
-                onClick={() => setShowAddInput(true)}
-                className="px-4 py-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-bold rounded-xl flex items-center gap-2 transition-colors"
-              >
-                <UserPlus className="w-4 h-4" />
-                إضافة مستخدم
-              </button>
-            )}
-          </div>
-          {showAddInput && (
-            <form onSubmit={handleAddUser} className="flex flex-col sm:flex-row gap-4 animate-in fade-in slide-in-from-top-4">
-              <div className="flex-1 relative">
-                <input 
-                  type="text" 
-                  placeholder="أدخل كود المشارك الخاص بالمستخدم..."
-                  value={newUserId}
-                  onChange={(e) => setNewUserId(e.target.value)}
-                  className="w-full bg-slate-50 border-2 border-slate-200 focus:border-indigo-500 rounded-xl py-3 px-4 outline-none font-mono text-sm transition-colors"
-                  dir="ltr"
-                />
-                {error && <p className="text-red-500 text-xs font-bold mt-2 absolute -bottom-5 right-0">{error}</p>}
-              </div>
-              <button 
-                type="submit"
-                disabled={loadingAdd || !newUserId.trim()}
-                className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-colors shadow-lg shadow-indigo-200 disabled:opacity-50 min-w-[140px]"
-              >
-                {loadingAdd ? 'جاري الإضافة...' : 'إضافة للقائمة'}
-              </button>
-              <button 
-                type="button"
-                onClick={() => { setShowAddInput(false); setError(''); }}
-                className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl flex items-center justify-center transition-colors"
-              >
-                إلغاء
-              </button>
-            </form>
-          )}
-        </div>
-
         {/* Users List */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="p-6 border-b border-slate-100 bg-slate-50">
-            <h2 className="text-lg font-black text-slate-800 flex items-center gap-2">
-              <Users className="w-5 h-5 text-slate-500" />
-              المستخدمين المضافين ({trackedUsers.length})
-            </h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                <Users className="w-5 h-5 text-slate-500" />
+                المستخدمين المضافين ({trackedUsers.length})
+              </h2>
+              {!showAddInput && (
+                <button 
+                  onClick={() => setShowAddInput(true)}
+                  className="w-10 h-10 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-bold rounded-xl flex items-center justify-center transition-colors"
+                  title="إضافة مستخدم"
+                >
+                  <Plus className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+            
+            {showAddInput && (
+              <form onSubmit={handleAddUser} className="mt-4 flex flex-col sm:flex-row gap-4 animate-in fade-in slide-in-from-top-2">
+                <div className="flex-1 relative">
+                  <input 
+                    type="text" 
+                    placeholder="أدخل كود المشارك الخاص بالمستخدم..."
+                    value={newUserId}
+                    onChange={(e) => setNewUserId(e.target.value)}
+                    className="w-full bg-white border-2 border-slate-200 focus:border-indigo-500 rounded-xl py-2 px-4 outline-none font-mono text-sm transition-colors"
+                    dir="ltr"
+                  />
+                  {error && <p className="text-red-500 text-xs font-bold mt-1 absolute -bottom-5 right-0">{error}</p>}
+                </div>
+                <button 
+                  type="submit"
+                  disabled={loadingAdd || !newUserId.trim()}
+                  className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-colors shadow-sm disabled:opacity-50 min-w-[120px]"
+                >
+                  {loadingAdd ? 'جاري الإضافة...' : 'إضافة'}
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => { setShowAddInput(false); setError(''); }}
+                  className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl flex items-center justify-center transition-colors"
+                >
+                  إلغاء
+                </button>
+              </form>
+            )}
           </div>
           
           {trackedUsers.length === 0 ? (
@@ -469,12 +439,7 @@ export function SupervisorDashboard({ onClose, supervisorId, trackedUsers = [], 
         </div>
 
         
-        {/* Champions Board */}
-        {(() => {
-          const sortedUsers = trackedUsers.map(uid => ({ name: usersMap[uid]?.displayName || 'بدون اسم', score: calculateTotalScore(usersMap[uid] || {} as any) })).sort((a,b) => b.score - a.score);
-          const leaderboardSettings = { show: true, entries: sortedUsers };
-          return <UserLeaderboard settings={leaderboardSettings} />;
-        })()}
+        
 
         {/* Create Quiz Section */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mt-8">

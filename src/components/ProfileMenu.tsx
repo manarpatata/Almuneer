@@ -37,8 +37,10 @@ export function ProfileMenu({ user, avatarUrl, onLogin, onOpenDashboard, onChang
         onClick={() => setIsOpen(!isOpen)}
         className="w-10 h-10 md:w-12 md:h-12 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-500 shadow-sm border-2 border-slate-200 hover:border-emerald-500 transition-colors shrink-0 overflow-hidden"
       >
-        {user?.photoURL ? (
-          <img src={user.photoURL} alt="Profile" className="w-full h-full object-cover" />
+        {avatarUrl ? (
+          <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
+        ) : user?.email ? (
+          <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}&backgroundColor=e2e8f0`} alt="Profile" className="w-full h-full object-cover" />
         ) : (
           <UserIcon className="w-6 h-6 md:w-7 md:h-7" />
         )}

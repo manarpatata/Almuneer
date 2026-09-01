@@ -14,7 +14,7 @@ import { WaterGunOverlay } from './components/WaterGunOverlay';
 import { StatsModal } from './components/StatsModal';
 import { WalletModal } from './components/WalletModal';
 import { motion, AnimatePresence } from 'motion/react';
-import { BookOpen, Settings, X, AlertTriangle, RotateCcw, CheckCircle, HelpCircle, Trophy, Gift, Scale, Skull, Search, Shield, Star, Snowflake, FileText } from 'lucide-react';
+import { BookOpen, Settings, Menu, X, AlertTriangle, RotateCcw, CheckCircle, HelpCircle, Trophy, Gift, Scale, Skull, Search, Shield, Star, Snowflake, FileText } from 'lucide-react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth, db } from './firebase';
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
@@ -29,6 +29,7 @@ export default function App() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [dataLoadedFromCloud, setDataLoadedFromCloud] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
+  const [showNavMenu, setShowNavMenu] = useState(false);
   const [activeTab, setActiveTab] = useState<'home' | 'lessons'>('home');
   const [activeQuiz, setActiveQuiz] = useState<any | null>(null);
   const [quizAnswers, setQuizAnswers] = useState<number[]>([]);
@@ -262,7 +263,7 @@ export default function App() {
     const currentCount = (state.supervisorPunishments || []).length + (state.pendingPunishmentsCount || (state.pendingPunishment ? 1 : 0));
     if (currentCount > prevPunishmentCount.current) {
       try {
-        const audioCtx = new (window.AudioContext || (window).webkitAudioContext)();
+        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
         const oscillator = audioCtx.createOscillator();
         const gainNode = audioCtx.createGain();
         oscillator.type = 'triangle';
@@ -750,9 +751,7 @@ export default function App() {
 
 
 
-  if (showDashboard) {
-    return <SupervisorDashboard onClose={() => setShowDashboard(false)} supervisorId={user?.uid || 'guest'} trackedUsers={state.trackedUsers || []} showToast={(msg) => { setToastMessage(msg); setTimeout(() => setToastMessage(''), 3000); }} />;
-  }
+  
 
   const isExpelled = state.expelledUntil && state.expelledUntil > Date.now();
   
@@ -771,6 +770,40 @@ export default function App() {
         </div>
       )}
       {showAuthModal && <Auth onClose={() => setShowAuthModal(false)} />}
+      {showAvatarModal && (
+        <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white p-6 rounded-3xl shadow-2xl w-full max-w-md border border-slate-200" dir="rtl">
+            <h3 className="text-xl font-black text-slate-800 mb-4 text-center">اختر صورتك الشخصية</h3>
+            <div className="grid grid-cols-4 gap-3 mb-6">
+              {Array.from({ length: 12 }).map((_, i) => {
+                const seed = `user-${i + 1}`;
+                const url = `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}&backgroundColor=e2e8f0`;
+                return (
+                  <button 
+                    key={i} 
+                    onClick={() => {
+                      if (user) {
+                        setDoc(doc(db, 'users', user.uid), { avatarUrl: url }, { merge: true });
+                      }
+                      setShowAvatarModal(false);
+                    }}
+                    className="aspect-square rounded-2xl bg-slate-100 overflow-hidden hover:ring-4 hover:ring-indigo-300 transition-all border border-slate-200"
+                  >
+                    <img src={url} alt="Avatar option" className="w-full h-full object-cover" />
+                  </button>
+                )
+              })}
+            </div>
+            <button 
+              onClick={() => setShowAvatarModal(false)}
+              className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors"
+            >
+              إلغاء
+            </button>
+          </div>
+        </div>
+      )}
+
       
       <SupervisorGiftOverlay gifts={state.supervisorGifts || []} onClaim={handleClaimSupervisorGift} />
       {gotSplashedToday && (
@@ -785,7 +818,7 @@ export default function App() {
           <div className="flex items-center gap-4 md:gap-6">
             <div className="flex items-center gap-3">
               <ProfileMenu user={user} avatarUrl={state.avatarUrl} onLogin={() => setShowAuthModal(true)} onOpenDashboard={() => setShowDashboard(true)} onChangeAvatar={() => setShowAvatarModal(true)} showToast={(msg) => { setToastMessage(msg); setTimeout(() => setToastMessage(''), 3000); }} />
-              <div className="flex flex-col md:flex-row gap-1.5 md:gap-2">
+              {!showDashboard && <div className="flex flex-col md:flex-row gap-1.5 md:gap-2">
                 <button
                   onClick={() => setShowStats(true)}
                   className="flex items-center justify-center gap-1.5 bg-yellow-50 hover:bg-yellow-100 transition-colors px-2.5 py-0.5 md:px-3 md:py-1 rounded-lg border border-yellow-200 text-yellow-700 shadow-sm"
@@ -807,7 +840,7 @@ export default function App() {
                     </span>
                   )}
                 </button>
-              </div>
+              </div>}
             </div>
             
             <div className="flex gap-2 hidden md:flex">
@@ -829,18 +862,15 @@ export default function App() {
             </div>
           </div>
           
-          {/* Desktop Tabs */}
-          <div className="hidden md:flex gap-2 p-1.5 bg-slate-200/50 rounded-xl mx-auto w-full max-w-sm">
-            <button onClick={() => setActiveTab('home')} className={`flex-1 py-1.5 rounded-lg font-bold transition-all ${activeTab === 'home' ? 'bg-white shadow text-indigo-600' : 'text-slate-500 hover:bg-slate-200'}`}>الرئيسية</button>
-            <button onClick={() => setActiveTab('lessons')} className={`flex-1 py-1.5 rounded-lg font-bold transition-all ${activeTab === 'lessons' ? 'bg-white shadow text-indigo-600' : 'text-slate-500 hover:bg-slate-200'}`}>الدروس</button>
-          </div>
+          
           
           <div className="flex gap-2 md:gap-6 items-center">
-            <div className="flex flex-col items-center justify-center bg-red-50 px-3 py-1.5 md:px-4 md:py-2 rounded-xl border border-red-100 min-w-[90px] md:min-w-[120px]">
+            {!showDashboard && <div className="flex flex-col items-center justify-center bg-red-50 px-3 py-1.5 md:px-4 md:py-2 rounded-xl border border-red-100 min-w-[90px] md:min-w-[120px]">
               <span className="text-[10px] md:text-xs font-bold text-red-400">منتصف الليل</span>
               <span className="text-lg md:text-2xl font-black text-red-600 font-mono" dir="ltr">{timeToMidnight}</span>
-            </div>
+            </div>}
 
+            
             <div className="flex flex-col md:hidden gap-1">
               <button 
                 onClick={() => {
@@ -858,19 +888,48 @@ export default function App() {
                 <HelpCircle className="w-4 h-4" />
               </button>
             </div>
+            {/* Navigation Menu */}
+          {!showDashboard && (
+            <div className="relative shrink-0 z-[60]">
+              <button 
+                onClick={() => setShowNavMenu(!showNavMenu)}
+                className="flex items-center justify-center p-2 md:p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl transition-colors border border-slate-200 shadow-sm"
+              >
+                <Menu className="w-5 h-5 md:w-6 md:h-6" />
+              </button>
+              
+              {showNavMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowNavMenu(false)}></div>
+                  <div className="absolute top-full left-0 mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden z-50 flex flex-col">
+                    <button 
+                      onClick={() => { setActiveTab('home'); setShowNavMenu(false); }}
+                      className={`w-full text-right px-4 py-3 font-bold transition-colors text-sm md:text-base ${activeTab === 'home' ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-slate-50 text-slate-700'}`}
+                    >
+                      الرئيسية
+                    </button>
+                    <button 
+                      onClick={() => { setActiveTab('lessons'); setShowNavMenu(false); }}
+                      className={`w-full text-right px-4 py-3 font-bold transition-colors text-sm md:text-base ${activeTab === 'lessons' ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-slate-50 text-slate-700'}`}
+                    >
+                      الدروس
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
           </div>
-        </div>
-        
-        {/* Mobile Tabs */}
-        <div className="md:hidden flex gap-2 p-1.5 bg-slate-200/50 rounded-xl mt-3 w-full">
-          <button onClick={() => setActiveTab('home')} className={`flex-1 py-2 rounded-lg font-bold transition-all ${activeTab === 'home' ? 'bg-white shadow text-indigo-600' : 'text-slate-500 hover:bg-slate-200'}`}>الرئيسية</button>
-          <button onClick={() => setActiveTab('lessons')} className={`flex-1 py-2 rounded-lg font-bold transition-all ${activeTab === 'lessons' ? 'bg-white shadow text-indigo-600' : 'text-slate-500 hover:bg-slate-200'}`}>الدروس</button>
         </div>
       </header>
 
       
 
       <main className="flex-1 p-4 md:p-6 flex flex-col gap-6 max-w-7xl mx-auto w-full">
+        {showDashboard ? (
+          <SupervisorDashboard onClose={() => setShowDashboard(false)} supervisorId={user?.uid || 'guest'} trackedUsers={state.trackedUsers || []} showToast={(msg) => { setToastMessage(msg); setTimeout(() => setToastMessage(''), 3000); }} />
+        ) : (
+        <>
         {activeTab === 'home' && (
           <div className="flex flex-col gap-6 w-full max-w-2xl mx-auto">
             <CalendarTracker history={state.history} dailyGoal={dailyGoal} currentScore={currentScore} pendingPunishment={state.pendingPunishment} pendingPunishmentsCount={state.pendingPunishmentsCount} />
@@ -1152,6 +1211,8 @@ export default function App() {
             />
           </div>
         )}
+        </>
+        )}
       </main>
 
       <footer className="px-4 md:px-8 py-3 bg-slate-900 text-white/50 text-xs flex justify-between items-center shrink-0">
@@ -1369,12 +1430,12 @@ export default function App() {
                 </h3>
                 <button 
                   onClick={() => {
-                    setShowDashboard(true);
+                    setShowDashboard(!showDashboard);
                     setShowSettings(false);
                   }}
                   className="mt-2 w-full flex items-center justify-center gap-2 bg-indigo-50 text-indigo-600 py-3 rounded-xl font-bold text-sm shadow-sm hover:bg-indigo-100 transition-colors"
                 >
-                  التحول إلى مشرف
+                  {showDashboard ? 'الدخول كطالب' : 'التحول إلى مشرف'}
                 </button>
               </div>
               <div className="border-t border-slate-100 pt-8 flex flex-col gap-3">
