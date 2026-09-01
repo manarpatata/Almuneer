@@ -13,6 +13,13 @@ export interface LeaderboardEntry {
   avatarUrl?: string;
 }
 
+export interface WeeklyReport {
+  id: string;
+  dateStr: string;
+  entries: LeaderboardEntry[];
+  timestamp: number;
+}
+
 export interface LeaderboardSettings {
   show: boolean;
   entries: LeaderboardEntry[];
@@ -94,6 +101,7 @@ export interface AppState {
   supervisorPunishmentReason?: string;
   supervisorPunishments?: SupervisorPunishment[];
   leaderboardSettings?: LeaderboardSettings;
+  weeklyReports?: WeeklyReport[];
   pendingQuizzes?: Quiz[];
   completedQuizzes?: CompletedQuiz[];
 }

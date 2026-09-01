@@ -5,7 +5,7 @@ import { AppState, LeaderboardEntry } from '../types';
 import { getWeeklyLessons, getMostRecentThursday } from '../utils';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { toPng } from 'html-to-image';
-import { doc, updateDoc, getDoc } from 'firebase/firestore';
+import { doc, updateDoc, getDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '../firebase';
 
 interface SupervisorReportsProps {
@@ -15,7 +15,8 @@ interface SupervisorReportsProps {
 
 export function SupervisorReports({ usersMap, supervisorId }: SupervisorReportsProps) {
   
-  const [reports, setReports] = useState<any[]>([]);
+  const [reports, setReports] = useState<import('../types').WeeklyReport[]>([]);
+  const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
   const [currentWeekEntries, setCurrentWeekEntries] = useState<LeaderboardEntry[]>([]);
   const [showGlobal, setShowGlobal] = useState(false);
   const chartRef = useRef<HTMLDivElement>(null);
@@ -53,6 +54,10 @@ export function SupervisorReports({ usersMap, supervisorId }: SupervisorReportsP
     fetchSupData();
   }, [supervisorId]);
 
+  const activeReport = selectedReportId ? reports.find(r => r.id === selectedReportId) : null;
+  const displayEntries = activeReport ? activeReport.entries : currentWeekEntries;
+  const reportTitle = activeReport ? `تقرير الأسبوع (${activeReport.dateStr})` : 'أبطال الأسبوع الحالي';
+
   const handleToggleGlobal = async () => {
     if (supervisorId === 'guest') {
       // Just toggle locally if guest
@@ -83,6 +88,28 @@ export function SupervisorReports({ usersMap, supervisorId }: SupervisorReportsP
         console.error("Failed to update user", uid, e);
       }
     });
+  };
+
+  
+  const handleSaveWeeklyReport = async () => {
+    if (currentWeekEntries.length === 0) return;
+    const dateStr = new Date().toISOString().split('T')[0];
+    const newReport = {
+      id: `report-${Date.now()}`,
+      dateStr,
+      entries: currentWeekEntries,
+      timestamp: Date.now()
+    };
+    try {
+      await updateDoc(doc(db, 'users', supervisorId), {
+        weeklyReports: arrayUnion(newReport)
+      });
+      setReports(prev => [...prev, newReport]);
+      alert('تم حفظ التقرير الأسبوعي بنجاح!');
+    } catch (e) {
+      console.error(e);
+      alert('حدث خطأ أثناء حفظ التقرير');
+    }
   };
 
   const handleDownload = async () => {
@@ -125,48 +152,74 @@ export function SupervisorReports({ usersMap, supervisorId }: SupervisorReportsP
             {showGlobal ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
             {showGlobal ? 'مرئي للطلاب' : 'مخفي عن الطلاب'}
           </button>
+          {!selectedReportId && (
+            <button 
+              onClick={handleSaveWeeklyReport}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm flex items-center gap-2 transition-colors shadow-sm"
+            >
+              حفظ وإغلاق الأسبوع
+            </button>
+          )}
           
         </div>
       </div>
-      
+
+      <div className="bg-white border-b border-slate-200 px-6 py-3 flex gap-2 overflow-x-auto shrink-0 hide-scrollbar">
+        <button
+          onClick={() => setSelectedReportId(null)}
+          className={`px-4 py-2 rounded-xl font-bold text-sm whitespace-nowrap transition-colors ${!selectedReportId ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'}`}
+        >
+          أبطال الأسبوع الحالي
+        </button>
+        {reports.slice().reverse().map((report) => (
+          <button
+            key={report.id}
+            onClick={() => setSelectedReportId(report.id)}
+            className={`px-4 py-2 rounded-xl font-bold text-sm whitespace-nowrap transition-colors ${selectedReportId === report.id ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'}`}
+          >
+            أسبوع ({report.dateStr})
+          </button>
+        ))}
+      </div>
+
       <div className="p-6" ref={chartRef}>
                 <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 mb-8">
-                  <h3 className="text-center font-black text-3xl text-slate-800 mb-8">أبطال الأسبوع</h3>
+                  <h3 className="text-center font-black text-3xl text-slate-800 mb-8">{reportTitle}</h3>
                   <div className="flex justify-center items-end gap-4 sm:gap-8 mb-12">
-                    {currentWeekEntries[1] && (
+                    {displayEntries[1] && (
                       <div className="flex flex-col items-center gap-2 mb-4">
                         <div className="w-16 h-16 bg-slate-200 rounded-full border-4 border-slate-300 flex items-center justify-center text-xl font-bold">2</div>
-                        <span className="font-bold text-slate-700 text-lg">{currentWeekEntries[1].displayName}</span>
-                        <span className="text-slate-500 font-bold bg-slate-100 px-3 py-1 rounded-full">{currentWeekEntries[1].weeklyLessons} درس</span>
+                        <span className="font-bold text-slate-700 text-lg">{displayEntries[1].displayName}</span>
+                        <span className="text-slate-500 font-bold bg-slate-100 px-3 py-1 rounded-full">{displayEntries[1].weeklyLessons} درس</span>
                       </div>
                     )}
-                    {currentWeekEntries[0] && (
+                    {displayEntries[0] && (
                       <div className="flex flex-col items-center gap-2">
                         <Trophy className="w-12 h-12 text-amber-400 mb-2" />
                         <div className="w-24 h-24 bg-amber-100 rounded-full border-4 border-amber-400 flex items-center justify-center text-3xl font-black text-amber-600">1</div>
-                        <span className="font-black text-amber-600 text-2xl">{currentWeekEntries[0].displayName}</span>
-                        <span className="text-amber-700 font-black bg-amber-50 px-4 py-1.5 rounded-full border border-amber-200">{currentWeekEntries[0].weeklyLessons} درس</span>
+                        <span className="font-black text-amber-600 text-2xl">{displayEntries[0].displayName}</span>
+                        <span className="text-amber-700 font-black bg-amber-50 px-4 py-1.5 rounded-full border border-amber-200">{displayEntries[0].weeklyLessons} درس</span>
                       </div>
                     )}
-                    {currentWeekEntries[2] && (
+                    {displayEntries[2] && (
                       <div className="flex flex-col items-center gap-2 mb-6">
                         <div className="w-14 h-14 bg-orange-100 rounded-full border-4 border-orange-300 flex items-center justify-center text-lg font-bold text-orange-700">3</div>
-                        <span className="font-bold text-slate-700 text-lg">{currentWeekEntries[2].displayName}</span>
-                        <span className="text-slate-500 font-bold bg-slate-100 px-3 py-1 rounded-full">{currentWeekEntries[2].weeklyLessons} درس</span>
+                        <span className="font-bold text-slate-700 text-lg">{displayEntries[2].displayName}</span>
+                        <span className="text-slate-500 font-bold bg-slate-100 px-3 py-1 rounded-full">{displayEntries[2].weeklyLessons} درس</span>
                       </div>
                     )}
                   </div>
                   
-                  {currentWeekEntries.length > 0 ? (
+                  {displayEntries.length > 0 ? (
                     <>
                     <div className="h-[400px] w-full mt-12" dir="ltr">
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={currentWeekEntries} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                        <BarChart data={displayEntries} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
                           <XAxis dataKey="displayName" angle={-45} textAnchor="end" height={80} interval={0} stroke="#64748b" tick={{fill: '#475569', fontWeight: 600}} />
                           <YAxis stroke="#64748b" tick={{fill: '#475569', fontWeight: 600}} />
                           <Tooltip cursor={{fill: '#f1f5f9'}} contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)', fontWeight: 'bold'}} />
                           <Bar dataKey="weeklyLessons" radius={[8, 8, 0, 0]} name="الدروس">
-                            {currentWeekEntries.map((entry, index) => (
+                            {displayEntries.map((entry, index) => (
                               <Cell key={`cell-${index}`} fill={index === 0 ? '#fbbf24' : index === 1 ? '#cbd5e1' : index === 2 ? '#fdba74' : '#818cf8'} />
                             ))}
                           </Bar>
@@ -175,7 +228,7 @@ export function SupervisorReports({ usersMap, supervisorId }: SupervisorReportsP
                     </div>
                     
                     <div className="mt-12 flex flex-col gap-3">
-                      {currentWeekEntries.map((entry, idx) => (
+                      {displayEntries.map((entry, idx) => (
                         <div key={idx} className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-100 transition-transform hover:scale-[1.01]">
                           <div className="flex items-center gap-4">
                             <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-lg shadow-inner
