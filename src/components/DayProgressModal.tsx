@@ -157,7 +157,10 @@ export function DayProgressModal({ date, stats, history, dailyGoal, currentScore
     if (statuses.includes('failed')) {
       message = "طرد تأديبي 🚪";
       msgColor = "text-slate-800";
-    } else if (completed === 0 && punished) {
+    } else if (completed === 0 && stats?.punished2Days) {
+      message = PUNISHED_PHRASES[dateHash % PUNISHED_PHRASES.length];
+      msgColor = "text-rose-600";
+    } else if (completed === 0 && stats?.punishedDaily) {
       message = "يتم تفتيقها لعدم مذاكرتها أي درس🔫!";
       msgColor = "text-blue-500";
     } else if (punished) {

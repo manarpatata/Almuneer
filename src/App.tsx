@@ -10,11 +10,13 @@ import { getTodayDateString, processMissedDays, addDays, calculateStreak } from 
 import { LessonsList } from './components/LessonsList';
 import { CalendarTracker } from './components/CalendarTracker';
 import { UserLeaderboard } from './components/UserLeaderboard';
+import confetti from 'canvas-confetti';
 import { WaterGunOverlay } from './components/WaterGunOverlay';
 import { StatsModal } from './components/StatsModal';
 import { WalletModal } from './components/WalletModal';
+import { StoreModal } from './components/StoreModal';
 import { motion, AnimatePresence } from 'motion/react';
-import { BookOpen, Settings, Menu, X, AlertTriangle, RotateCcw, CheckCircle, HelpCircle, Trophy, Gift, Scale, Skull, Search, Shield, Star, Snowflake, FileText } from 'lucide-react';
+import { BookOpen, Settings, Menu, X, AlertTriangle, RotateCcw, CheckCircle, HelpCircle, Trophy, Gift, Scale, Skull, Search, Shield, Star, Snowflake, FileText, ShoppingCart } from 'lucide-react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth, db } from './firebase';
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
@@ -117,6 +119,7 @@ export default function App() {
   const [showInstructions, setShowInstructions] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [showWalletModal, setShowWalletModal] = useState(false);
+  const [showStoreModal, setShowStoreModal] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [confirmGenerate, setConfirmGenerate] = useState(false);
   const [tempGoal, setTempGoal] = useState(state.dailyGoal || 10);
@@ -245,6 +248,11 @@ export default function App() {
         if (newState.completedLessons.length === LESSONS.length) {
           newState.khatmatCount += 1;
           newState.completedLessons = [];
+          confetti({
+            particleCount: 150,
+            spread: 70,
+            origin: { y: 0.6 }
+          });
         }
       } else {
         newState.completedLessons = newState.completedLessons.filter(l => l !== lesson);
@@ -355,7 +363,8 @@ export default function App() {
   const yesterdayDate = addDays(getTodayDateString(), -1);
   const yesterdayCompleted = state.history[yesterdayDate]?.lessonsCompleted || 0;
   const isYesterdayBeforeStart = yesterdayDate < (state.startDate || state.lastLoginDate);
-  const gotSplashedToday = yesterdayCompleted === 0 && state.history[yesterdayDate]?.punishedDaily;
+  const gotPunished2DaysToday = yesterdayCompleted === 0 && state.history[yesterdayDate]?.punished2Days;
+  const gotSplashedToday = yesterdayCompleted === 0 && state.history[yesterdayDate]?.punishedDaily && !gotPunished2DaysToday;
   
   let currentBoxType = 'default';
   if (state.pendingPunishment) currentBoxType = 'punishment';
@@ -757,6 +766,8 @@ export default function App() {
   
   const mainBgClasses = isExpelled 
     ? "bg-gradient-to-br from-red-50 to-red-100/80 text-red-950" 
+    : gotPunished2DaysToday
+    ? "bg-gradient-to-br from-red-50 to-rose-100/80 text-red-900 relative"
     : gotSplashedToday
     ? "bg-gradient-to-br from-blue-50 to-cyan-100/80 text-blue-900 relative"
     : "bg-gradient-to-br from-slate-50 to-slate-100/80 text-slate-800";
@@ -845,6 +856,12 @@ export default function App() {
             
             <div className="flex gap-2 hidden md:flex">
               <button 
+                onClick={() => setShowStoreModal(true)} 
+                className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-500 hover:bg-indigo-100 transition-colors"
+              >
+                <ShoppingCart className="w-5 h-5" />
+              </button>
+              <button 
                 onClick={() => {
                   setTempGoal(state.dailyGoal || 10);
                   setShowSettings(true);
@@ -872,6 +889,12 @@ export default function App() {
 
             
             <div className="flex flex-col md:hidden gap-1">
+              <button 
+                onClick={() => setShowStoreModal(true)} 
+                className="w-8 h-8 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-500 hover:bg-indigo-100 transition-colors"
+              >
+                <ShoppingCart className="w-4 h-4" />
+              </button>
               <button 
                 onClick={() => {
                   setTempGoal(state.dailyGoal || 10);
@@ -1200,11 +1223,15 @@ export default function App() {
               )}
             </div>
             
-            {gotSplashedToday && (
+            {gotPunished2DaysToday ? (
+              <div className="bg-red-100 border-2 border-red-500 text-red-700 p-4 rounded-xl font-bold text-center mb-4">
+                تُحال إلى لجنة التفتيق والعقاب🔫💥
+              </div>
+            ) : gotSplashedToday ? (
               <div className="bg-blue-100 border-2 border-blue-400 text-blue-700 p-4 rounded-xl font-bold text-center mb-4">
                 يتم تفتيقها لعدم مذاكرتها أي درس🔫!
               </div>
-            )}
+            ) : null}
             <LessonsList 
               completedLessons={state.completedLessons} 
               onToggle={handleToggleLesson} 
@@ -1504,11 +1531,19 @@ export default function App() {
       )}
       </AnimatePresence>
 
+      {showStoreModal && (
+        <StoreModal
+          user={user}
+          points={currentScore + (state.points || 0)}
+          onClose={() => setShowStoreModal(false)}
+          showToast={(msg) => { setToastMessage(msg); setTimeout(() => setToastMessage(''), 3000); }}
+        />
+      )}
+      
       {showWalletModal && (
         <WalletModal
           immunityCards={state.immunityCards || 0}
           freezeCards={freezesAvailable}
-          pointsCards={Math.floor((state.points || 0) / 300)}
           onClose={() => setShowWalletModal(false)}
         />
       )}

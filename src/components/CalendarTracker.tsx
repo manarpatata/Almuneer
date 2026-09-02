@@ -74,7 +74,7 @@ export function CalendarTracker({ history, dailyGoal, currentScore, pendingPunis
             content = <>🔪</>;
         } else if (punished2Days) {
             boxClass += "bg-red-100 border-2 border-red-500 text-lg shadow-sm";
-            content = <>📦</>;
+            content = <>🔫</>;
         } else if (punishedDaily) {
             boxClass += "bg-blue-100 border-2 border-blue-400 text-lg shadow-sm relative overflow-hidden";
             content = <>
@@ -101,7 +101,7 @@ export function CalendarTracker({ history, dailyGoal, currentScore, pendingPunis
             content = <>🔪</>;
         } else if (punished2Days) {
             boxClass += "bg-red-500 text-white text-lg shadow-sm shadow-red-200";
-            content = <>📦</>;
+            content = <>🔫</>;
         } else if (punishedDaily) {
             boxClass += "bg-blue-400 text-white text-lg shadow-sm shadow-blue-200 relative overflow-hidden";
             content = <>

@@ -5,16 +5,14 @@ import { motion, AnimatePresence } from 'motion/react';
 interface WalletModalProps {
   immunityCards: number;
   freezeCards: number;
-  pointsCards: number; // calculated from points / 300
   onClose: () => void;
 }
 
-export function WalletModal({ immunityCards, freezeCards, pointsCards, onClose }: WalletModalProps) {
+export function WalletModal({ immunityCards, freezeCards, onClose }: WalletModalProps) {
   const [activeCard, setActiveCard] = React.useState<number | null>(null);
   const cards = [
     ...Array(immunityCards).fill('immunity'),
-    ...Array(freezeCards).fill('freeze'),
-    ...Array(pointsCards).fill('points')
+    ...Array(freezeCards).fill('freeze')
   ];
 
   return (
