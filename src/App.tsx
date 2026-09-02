@@ -67,7 +67,7 @@ export default function App() {
             const initialState = {
               ...state,
               email: user.email,
-              displayName: user.displayName || user.email?.split('@')[0]
+              displayName: state.displayName || user.displayName || user.email?.split('@')[0]
             };
             await setDoc(doc(db, 'users', user.uid), JSON.parse(JSON.stringify(initialState)));
             setState(initialState);
@@ -136,7 +136,7 @@ export default function App() {
         const stateToSave = {
           ...state,
           email: user.email,
-          displayName: user.displayName || user.email?.split('@')[0]
+          displayName: state.displayName || user.displayName || user.email?.split('@')[0]
         };
         // Clean undefined values to prevent Firebase errors
         const cleanState = JSON.parse(JSON.stringify(stateToSave));
@@ -1092,7 +1092,7 @@ export default function App() {
               type: 'system',
               reason: 'لم تنجز المطلوب في اليومين الماضيين! تحمل العواقب الوخيمة🔪',
               sender: 'لجنة العقوبات'
-            }));
+            } as any));
             const supPunishments = state.supervisorPunishments || [];
             const allPunishments = [...systemPunishments, ...supPunishments];
             

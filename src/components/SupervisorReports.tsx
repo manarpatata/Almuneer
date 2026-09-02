@@ -58,6 +58,24 @@ export function SupervisorReports({ usersMap, supervisorId }: SupervisorReportsP
   const displayEntries = activeReport ? activeReport.entries : currentWeekEntries;
   const reportTitle = activeReport ? `تقرير الأسبوع (${activeReport.dateStr})` : 'أبطال الأسبوع الحالي';
 
+  // Auto-sync leaderboard if shown
+  useEffect(() => {
+    if (showGlobal && supervisorId !== 'guest' && currentWeekEntries.length > 0) {
+      const timeoutId = setTimeout(() => {
+        const settings = {
+          show: true,
+          entries: currentWeekEntries.slice(0, 10),
+          lastUpdated: Date.now()
+        };
+        updateDoc(doc(db, 'users', supervisorId), { leaderboardSettings: settings }).catch(console.error);
+        Object.keys(usersMap).forEach((uid) => {
+          updateDoc(doc(db, 'users', uid), { leaderboardSettings: settings }).catch(console.error);
+        });
+      }, 1000); // Debounce
+      return () => clearTimeout(timeoutId);
+    }
+  }, [currentWeekEntries, showGlobal, supervisorId, usersMap]);
+
   const handleToggleGlobal = async () => {
     if (supervisorId === 'guest') {
       // Just toggle locally if guest
