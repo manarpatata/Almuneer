@@ -1,5 +1,6 @@
 
 export interface SupervisorPunishment {
+  signature?: string;
   id: string;
   reason: string;
   sender: string;

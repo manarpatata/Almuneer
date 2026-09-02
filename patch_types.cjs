@@ -1,10 +1,7 @@
 const fs = require('fs');
-let code = fs.readFileSync('src/types.ts', 'utf8');
-
-code = code.replace(
-  "kicked?: boolean;",
-  "kicked?: boolean;\n  expelledUntil?: number;"
+let content = fs.readFileSync('src/types.ts', 'utf8');
+content = content.replace(
+  /export interface SupervisorPunishment \{/,
+  'export interface SupervisorPunishment {\n  signature?: string;'
 );
-
-fs.writeFileSync('src/types.ts', code);
-console.log("Patched types");
+fs.writeFileSync('src/types.ts', content);

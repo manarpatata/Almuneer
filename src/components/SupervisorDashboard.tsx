@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import SignatureCanvas from 'react-signature-canvas';
 import { doc, getDoc, updateDoc, onSnapshot, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { db } from '../firebase';
 import { AppState, SupervisorGift } from '../types';
@@ -155,6 +156,8 @@ export function SupervisorDashboard({ onClose, supervisorId, trackedUsers = [], 
   };
 
   const [punishSender, setPunishSender] = useState('المشرف');
+  const [punishSignature, setPunishSignature] = useState('');
+  const sigCanvasRef = useRef<SignatureCanvas>(null);
 
   const handleSendPunishment = async () => {
     if (!selectedUser) return;
@@ -169,6 +172,7 @@ export function SupervisorDashboard({ onClose, supervisorId, trackedUsers = [], 
           id: Date.now().toString(),
           reason: punishReason || 'عقاب من المشرف',
           sender: punishSender || 'المشرف',
+          signature: punishSignature,
           timestamp: Date.now()
         })
       });
@@ -715,8 +719,33 @@ export function SupervisorDashboard({ onClose, supervisorId, trackedUsers = [], 
                   placeholder="مثال: عدم كتابة الفوائد..."
                 />
               </div>
+                          <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">توقيع المشرف</label>
+                <div className="border-2 border-amber-200 rounded-xl bg-amber-50 overflow-hidden relative">
+                  <SignatureCanvas 
+                    ref={sigCanvasRef}
+                    penColor="#b91c1c"
+                    canvasProps={{className: "w-full h-24", style: { cursor: 'crosshair' }}}
+                    onEnd={() => {
+                      if (sigCanvasRef.current) {
+                        setPunishSignature(sigCanvasRef.current.toDataURL());
+                      }
+                    }}
+                  />
+                  <button 
+                    onClick={() => {
+                      if (sigCanvasRef.current) {
+                        sigCanvasRef.current.clear();
+                        setPunishSignature('');
+                      }
+                    }}
+                    className="absolute top-2 left-2 bg-white/80 p-1 text-xs font-bold text-amber-700 rounded shadow-sm hover:bg-white"
+                  >
+                    مسح
+                  </button>
+                </div>
+              </div>
             </div>
-
             <div className="flex items-center justify-end gap-3">
               <button 
                 onClick={() => setShowPunishModal(false)}
@@ -764,8 +793,33 @@ export function SupervisorDashboard({ onClose, supervisorId, trackedUsers = [], 
                   className="w-12 h-12 bg-emerald-100 hover:bg-emerald-200 text-emerald-600 rounded-xl font-black text-xl flex items-center justify-center transition-colors"
                 >+10</button>
               </div>
+                          <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">توقيع المشرف</label>
+                <div className="border-2 border-amber-200 rounded-xl bg-amber-50 overflow-hidden relative">
+                  <SignatureCanvas 
+                    ref={sigCanvasRef}
+                    penColor="#b91c1c"
+                    canvasProps={{className: "w-full h-24", style: { cursor: 'crosshair' }}}
+                    onEnd={() => {
+                      if (sigCanvasRef.current) {
+                        setPunishSignature(sigCanvasRef.current.toDataURL());
+                      }
+                    }}
+                  />
+                  <button 
+                    onClick={() => {
+                      if (sigCanvasRef.current) {
+                        sigCanvasRef.current.clear();
+                        setPunishSignature('');
+                      }
+                    }}
+                    className="absolute top-2 left-2 bg-white/80 p-1 text-xs font-bold text-amber-700 rounded shadow-sm hover:bg-white"
+                  >
+                    مسح
+                  </button>
+                </div>
+              </div>
             </div>
-
             <div className="flex items-center justify-end gap-3">
               <button 
                 onClick={() => setShowPointsModal(false)}

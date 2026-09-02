@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { User, signOut } from 'firebase/auth';
 import { auth } from '../firebase';
-import { LogOut, LogIn, User as UserIcon, ShieldCheck } from 'lucide-react';
+import { LogOut, LogIn, User as UserIcon, ShieldCheck, ShoppingCart } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface ProfileMenuProps {
@@ -10,9 +10,10 @@ interface ProfileMenuProps {
   onChangeAvatar?: () => void;
   onLogin: () => void;
   onOpenDashboard?: () => void;
+  onOpenStore?: () => void;
 }
 
-export function ProfileMenu({ user, avatarUrl, onLogin, onOpenDashboard, onChangeAvatar, showToast }: ProfileMenuProps & { showToast?: (msg: string) => void }) {
+export function ProfileMenu({ user, avatarUrl, onLogin, onOpenDashboard, onChangeAvatar, onOpenStore, showToast }: ProfileMenuProps & { showToast?: (msg: string) => void }) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -83,6 +84,13 @@ export function ProfileMenu({ user, avatarUrl, onLogin, onOpenDashboard, onChang
                   تغيير الصورة الشخصية
                 </button>
                 <button
+                  onClick={() => { setIsOpen(false); onOpenStore && onOpenStore(); }}
+                  className="w-full text-right px-4 py-2 text-sm font-bold text-amber-600 hover:bg-amber-50 flex items-center gap-2 transition-colors border-b border-slate-100"
+                >
+                  <ShoppingCart className="w-4 h-4" />
+                  المتجر
+                </button>
+                <button
                   onClick={() => { setIsOpen(false); onOpenDashboard && onOpenDashboard(); }}
                   className="w-full text-right px-4 py-2 text-sm font-bold text-indigo-600 hover:bg-indigo-50 flex items-center gap-2 transition-colors border-b border-slate-100"
                 >
@@ -110,6 +118,13 @@ export function ProfileMenu({ user, avatarUrl, onLogin, onOpenDashboard, onChang
                 تسجيل الدخول
               </button>
               <button
+                  onClick={() => { setIsOpen(false); onOpenStore && onOpenStore(); }}
+                  className="w-full text-right px-4 py-2 text-sm font-bold text-amber-600 hover:bg-amber-50 flex items-center gap-2 transition-colors border-b border-slate-100"
+                >
+                  <ShoppingCart className="w-4 h-4" />
+                  المتجر
+                </button>
+                <button
                   onClick={() => { setIsOpen(false); onOpenDashboard && onOpenDashboard(); }}
                   className="w-full text-right px-4 py-2 text-sm font-bold text-indigo-600 hover:bg-indigo-50 flex items-center gap-2 transition-colors"
                 >

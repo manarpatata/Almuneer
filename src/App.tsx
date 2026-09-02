@@ -23,7 +23,6 @@ import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { Auth } from './components/Auth';
 import { ProfileMenu } from './components/ProfileMenu';
 import { SupervisorDashboard } from './components/SupervisorDashboard';
-import { SupervisorGiftOverlay } from './components/SupervisorGiftOverlay';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -816,7 +815,7 @@ export default function App() {
       )}
 
       
-      <SupervisorGiftOverlay gifts={state.supervisorGifts || []} onClaim={handleClaimSupervisorGift} />
+      
       {gotSplashedToday && (
         <div className="fixed inset-0 pointer-events-none z-[45] overflow-hidden opacity-40">
           {Array.from({ length: 20 }).map((_, i) => (
@@ -828,7 +827,7 @@ export default function App() {
         <div className="flex items-center justify-between w-full">
           <div className="flex items-center gap-4 md:gap-6">
             <div className="flex items-center gap-3">
-              <ProfileMenu user={user} avatarUrl={state.avatarUrl} onLogin={() => setShowAuthModal(true)} onOpenDashboard={() => setShowDashboard(true)} onChangeAvatar={() => setShowAvatarModal(true)} showToast={(msg) => { setToastMessage(msg); setTimeout(() => setToastMessage(''), 3000); }} />
+              <ProfileMenu user={user} avatarUrl={state.avatarUrl} onLogin={() => setShowAuthModal(true)} onOpenDashboard={() => setShowDashboard(true)} onChangeAvatar={() => setShowAvatarModal(true)} onOpenStore={() => setShowStoreModal(true)} showToast={(msg) => { setToastMessage(msg); setTimeout(() => setToastMessage(''), 3000); }} />
               {!showDashboard && <div className="flex flex-col md:flex-row gap-1.5 md:gap-2">
                 <button
                   onClick={() => setShowStats(true)}
@@ -855,12 +854,7 @@ export default function App() {
             </div>
             
             <div className="flex gap-2 hidden md:flex">
-              <button 
-                onClick={() => setShowStoreModal(true)} 
-                className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-500 hover:bg-indigo-100 transition-colors"
-              >
-                <ShoppingCart className="w-5 h-5" />
-              </button>
+              
               <button 
                 onClick={() => {
                   setTempGoal(state.dailyGoal || 10);
@@ -889,12 +883,7 @@ export default function App() {
 
             
             <div className="flex flex-col md:hidden gap-1">
-              <button 
-                onClick={() => setShowStoreModal(true)} 
-                className="w-8 h-8 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-500 hover:bg-indigo-100 transition-colors"
-              >
-                <ShoppingCart className="w-4 h-4" />
-              </button>
+              
               <button 
                 onClick={() => {
                   setTempGoal(state.dailyGoal || 10);
@@ -985,6 +974,40 @@ export default function App() {
               </div>
             </div>
 
+          
+                    {(state.supervisorGifts || []).map((gift) => {
+            const isOpened = gift.claimed;
+            return !isOpened ? (
+              <div key={gift.id} onClick={() => handleClaimSupervisorGift(gift.id)} className="relative w-full h-48 bg-fuchsia-500 rounded-xl overflow-hidden shadow-2xl cursor-pointer hover:scale-[1.03] active:scale-95 transition-all border-4 border-fuchsia-600 shrink-0">
+                <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-12 bg-pink-400 shadow-sm"></div>
+                <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-12 bg-pink-400 shadow-sm"></div>
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-pink-500 rotate-45 rounded-xl shadow-lg border-[3px] border-pink-400"></div>
+                
+                <div className="absolute bottom-2 right-2 bg-[#fdf8e6] px-2 py-1.5 rounded-lg shadow-xl border-2 border-fuchsia-300 rotate-[-8deg] z-10 w-[160px] pointer-events-none flex flex-col items-center">
+                  <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-[#fdf8e6] rounded-full border-2 border-fuchsia-300 flex items-center justify-center">
+                    <div className="w-1 h-1 bg-fuchsia-500 rounded-full"></div>
+                  </div>
+                  <p className="text-[10px] font-black text-fuchsia-900 mb-1 leading-tight text-center mt-1">"{gift.message}"</p>
+                  <p className="text-[9px] text-fuchsia-700 font-bold border-t border-fuchsia-200 pt-1 text-center w-full">من: {gift.from}</p>
+                </div>
+              </div>
+            ) : (
+              <div key={gift.id} className="bg-fuchsia-50 border-[6px] border-fuchsia-400 rounded-xl p-5 shadow-2xl relative flex flex-col items-center justify-center text-center transform -rotate-2 hover:rotate-0 transition-transform cursor-default h-48 overflow-hidden shrink-0">
+                <div className="absolute inset-1 border-2 border-dashed border-fuchsia-300 rounded-lg pointer-events-none"></div>
+                <div className="w-12 h-12 bg-fuchsia-500 text-white rounded-full flex items-center justify-center mb-3 shadow-inner z-10">
+                  {gift.giftType === 'freeze' ? <Snowflake className="w-6 h-6" /> :
+                   gift.giftType === 'pardon' ? <Shield className="w-6 h-6" /> :
+                   <Star className="w-6 h-6 fill-current" />}
+                </div>
+                <h3 className="font-black text-fuchsia-800 text-xl uppercase tracking-widest mb-1 z-10">
+                  {gift.giftType === 'freeze' ? 'استعادة ستريك' :
+                   gift.giftType === 'pardon' ? 'كرت الإعفاء' :
+                   '300 نقطة'}
+                </h3>
+                <p className="text-xs text-fuchsia-600 font-bold z-10 mt-1">من: {gift.from}</p>
+              </div>
+            );
+          })}
           
           {Array.from({ length: totalGiftsToday }).map((_, idx) => (
             !openedGiftsBoxes[idx] ? (
@@ -1102,11 +1125,33 @@ export default function App() {
                   </div>
                   
                   {/* Shipping Label */}
-                  <div className="absolute top-4 left-4 bg-[#fdf8e6] px-3 py-2 rounded shadow-sm border border-[#d4b483] w-40 rotate-[5deg] z-20">
-                    <div className="text-[8px] text-[#8c6b44] font-bold mb-1 border-b border-dashed border-[#8c6b44] pb-1">بيانات الشحن 📄</div>
-                    <div className="text-[9px] text-[#4a3424] mb-1"><b>المرسل:</b> {punishment.sender}</div>
-                    <div className="text-[9px] text-[#4a3424] mb-1"><b>السبب:</b> {punishment.reason}</div>
-                    <div className="text-[8px] text-[#8c6b44] mt-1 pt-1 border-t border-dashed border-[#8c6b44]">التوقيع: {punishment.sender}</div>
+                  <div className="absolute top-4 left-4 bg-[#fdf8e6] px-2.5 py-2 rounded shadow-sm border border-[#d4b483] w-40 rotate-[5deg] z-20 font-mono">
+                    <div className="text-center text-[10px] font-bold text-[#8c6b44] border-b border-[#8c6b44] pb-0.5 mb-2">بـيـانـات الـشـحـن</div>
+                    
+                    <div className="flex justify-between items-center mb-1 text-[9px]">
+                      <span className="text-[#8c6b44] font-bold">المرسل:</span>
+                      <span className="text-[#4a3424]">{punishment.sender}</span>
+                    </div>
+                    
+                    <div className="flex justify-between items-center mb-1.5 text-[9px]">
+                      <span className="text-[#8c6b44] font-bold">المرسل إليه:</span>
+                      <span className="text-[#4a3424]">حضرة سيادتك</span>
+                    </div>
+                    
+                    <div className="text-[9px] text-[#4a3424] font-bold leading-tight mb-2 py-1">
+                      {punishment.reason}
+                    </div>
+                    
+                    <div className="flex justify-between items-end border-t border-dashed border-[#8c6b44] pt-1.5 mt-1.5 h-12">
+                      <span className="text-[8px] text-[#8c6b44]">التوقيع:</span>
+                      {punishment.signature ? (
+                        <img src={punishment.signature} alt="Signature" className="h-10 w-24 object-contain -rotate-6 opacity-80" />
+                      ) : (
+                        <div className="text-lg font-[Brush_Script_MT,cursive] text-red-700/80 -rotate-12 opacity-80" style={{ fontFamily: '"Caveat", "Dancing Script", cursive' }}>
+                          {punishment.sender}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
