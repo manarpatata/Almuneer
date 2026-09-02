@@ -623,7 +623,7 @@ export function SupervisorDashboard({ onClose, supervisorId, trackedUsers = [], 
       {/* Gift Modal */}
       {showGiftModal && selectedUser && (
         <div className="fixed inset-0 z-[210] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white p-6 rounded-3xl shadow-2xl w-full max-w-md border-4 border-emerald-100">
+          <div className="bg-white p-6 rounded-3xl shadow-2xl w-full max-w-md border-4 border-emerald-100 max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-black text-slate-800 mb-1 flex items-center gap-2">
               <Gift className="w-6 h-6 text-emerald-500" />
               إرسال هدية لـ {selectedUser.data.displayName}
@@ -684,7 +684,7 @@ export function SupervisorDashboard({ onClose, supervisorId, trackedUsers = [], 
       {/* Punish Modal */}
       {showPunishModal && selectedUser && (
         <div className="fixed inset-0 z-[210] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white p-6 rounded-3xl shadow-2xl w-full max-w-md border-4 border-amber-100">
+          <div className="bg-white p-6 rounded-3xl shadow-2xl w-full max-w-md border-4 border-amber-100 max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-black text-slate-800 mb-4 flex items-center gap-2">
               <Skull className="w-6 h-6 text-amber-500" />
               إضافة عقوبة لـ {selectedUser.data.displayName}
