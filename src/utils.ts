@@ -53,8 +53,7 @@ export function processMissedDays(currentState: AppState) {
     const startDate = newState.startDate || newState.lastLoginDate;
     
     // Only check 2-day punishment if the previous day is on or after the start date
-    // Also, DO NOT give a box (2-day punishment) if they had 0 lessons on THIS day (they only get water splash)
-    if (prevDate >= startDate && dayStats.lessonsCompleted > 0) {
+    if (prevDate >= startDate) {
       const prevStats = newState.history[prevDate] || { lessonsCompleted: 0, punishedDaily: false, punished2Days: false };
       const total2Days = dayStats.lessonsCompleted + prevStats.lessonsCompleted;
       const twoDayGoal = (newState.dailyGoal || 10) * 2;
