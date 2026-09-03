@@ -1,22 +1,18 @@
 const fs = require('fs');
-let code = fs.readFileSync('src/App.tsx', 'utf8');
+let content = fs.readFileSync('src/App.tsx', 'utf8');
 
-const oldSync = `        const stateToSave = {
-          ...state,
-          email: user.email,
-          displayName: user.displayName || user.email?.split('@')[0]
-        };
-        setDoc(doc(db, 'users', user.uid), stateToSave).catch(e => console.error("Error saving to cloud:", e));`;
+const regex = /const cleanState = JSON\.parse\(JSON\.stringify\(stateToSave\)\);\s*setDoc\(doc\(db, 'users', user\.uid\), cleanState, \{ merge: true \}\)\.catch\(e => console\.error\("Error saving to cloud:", e\)\);/g;
 
-const newSync = `        const stateToSave = {
-          ...state,
-          email: user.email,
-          displayName: user.displayName || user.email?.split('@')[0]
-        };
-        // Clean undefined values to prevent Firebase errors
-        const cleanState = JSON.parse(JSON.stringify(stateToSave));
-        setDoc(doc(db, 'users', user.uid), cleanState).catch(e => console.error("Error saving to cloud:", e));`;
+const replacement = `const cleanState = JSON.parse(JSON.stringify(stateToSave));
+        updateDoc(doc(db, 'users', user.uid), cleanState).catch(e => {
+          // If document doesn't exist yet, fallback to setDoc
+          setDoc(doc(db, 'users', user.uid), cleanState);
+        });`;
 
-code = code.replace(oldSync, newSync);
-fs.writeFileSync('src/App.tsx', code);
-console.log("Fixed undefined sync");
+if (regex.test(content)) {
+  content = content.replace(regex, replacement);
+  fs.writeFileSync('src/App.tsx', content);
+  console.log("Successfully replaced cloud sync logic.");
+} else {
+  console.log("Regex didn't match.");
+}

@@ -19,7 +19,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { BookOpen, Settings, Menu, X, AlertTriangle, RotateCcw, CheckCircle, HelpCircle, Trophy, Gift, Scale, Skull, Search, Shield, Star, Snowflake, FileText, ShoppingCart } from 'lucide-react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth, db } from './firebase';
-import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { Auth } from './components/Auth';
 import { ProfileMenu } from './components/ProfileMenu';
 import { SupervisorDashboard } from './components/SupervisorDashboard';
@@ -144,7 +144,10 @@ export default function App() {
         
         // Clean undefined values to prevent Firebase errors
         const cleanState = JSON.parse(JSON.stringify(stateToSave));
-        setDoc(doc(db, 'users', user.uid), cleanState, { merge: true }).catch(e => console.error("Error saving to cloud:", e));
+        updateDoc(doc(db, 'users', user.uid), cleanState).catch(e => {
+          // If document doesn't exist yet, fallback to setDoc
+          setDoc(doc(db, 'users', user.uid), cleanState);
+        });
       }, 500);
       return () => clearTimeout(timeoutId);
     }
@@ -539,6 +542,7 @@ export default function App() {
     }
     
     const tempState: AppState = {
+      ...state,
       completedLessons: [],
       khatmatCount: Math.floor(totalCompleted / 28),
       history: newHistory,
@@ -546,7 +550,18 @@ export default function App() {
       startDate: addDays(todayStr, -7),
       dailyGoal: state.dailyGoal || 10,
       pendingPunishment: false,
-      pendingPunishmentsCount: 0
+      pendingPunishmentsCount: 0,
+      points: 0,
+      immunityCards: 0,
+      extraStreakFreezes: 0,
+      supervisorGifts: [],
+      unclaimedGifts: 0,
+      claimedGiftsByDate: {},
+      lastClaimedGiftDate: '',
+      supervisorPunishments: [],
+      claimedFollowUpGifts: 0,
+      claimedFollowUpGiftsByDate: {},
+      earnedGiftDates: []
     };
     
     const { newState } = processMissedDays(tempState);
@@ -634,7 +649,8 @@ export default function App() {
 
   const executeReset = () => {
     const today = getTodayDateString();
-    setState({
+    setState(prev => ({
+      ...prev,
       completedLessons: [],
       khatmatCount: 0,
       history: {
@@ -642,10 +658,21 @@ export default function App() {
       },
       lastLoginDate: today,
       startDate: today,
-      dailyGoal: state.dailyGoal || 10,
+      dailyGoal: prev.dailyGoal || 10,
       pendingPunishment: false,
-      pendingPunishmentsCount: 0
-    });
+      pendingPunishmentsCount: 0,
+      points: 0,
+      immunityCards: 0,
+      extraStreakFreezes: 0,
+      supervisorGifts: [],
+      unclaimedGifts: 0,
+      claimedGiftsByDate: {},
+      lastClaimedGiftDate: '',
+      supervisorPunishments: [],
+      claimedFollowUpGifts: 0,
+      claimedFollowUpGiftsByDate: {},
+      earnedGiftDates: []
+    }));
     setConfirmReset(false);
     setShowSettings(false);
     setToastMessage("تم تصفير الإنجازات بنجاح");
