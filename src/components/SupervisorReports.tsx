@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { FileText, Trophy, X, Download, Share2, Eye, EyeOff } from 'lucide-react';
 import { AppState, LeaderboardEntry } from '../types';
-import { getWeeklyLessons, getMostRecentThursday } from '../utils';
+import { getWeeklyLessons, getMostRecentThursday, addDays } from '../utils';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { toPng } from 'html-to-image';
 import { doc, updateDoc, getDoc, arrayUnion } from 'firebase/firestore';
@@ -37,6 +37,72 @@ export function SupervisorReports({ usersMap, supervisorId }: SupervisorReportsP
     setCurrentWeekEntries(entries);
   }, [usersMap]);
 
+  // Auto close weeks
+  useEffect(() => {
+    if (!usersMap || Object.keys(usersMap).length === 0 || supervisorId === 'guest') return;
+
+    const autoClosePastWeeks = async () => {
+      try {
+        const todayStr = new Date().toISOString().split('T')[0];
+        const currentThursday = getMostRecentThursday(todayStr);
+        const pastThursday = addDays(currentThursday, -7);
+        
+        // We check if a report exists for the past week
+        // We will identify auto-generated reports by id: report-{thursdayDate}
+        const pastWeekReportId = `report-${pastThursday}`;
+        
+        // We need to fetch supervisor data to check existing reports
+        const snap = await getDoc(doc(db, 'users', supervisorId));
+        if (snap.exists()) {
+          const data = snap.data();
+          const existingReports = data.weeklyReports || [];
+          
+          if (!existingReports.find((r: any) => r.id === pastWeekReportId)) {
+            // Generate entries for the past week
+            const pastEntries = Object.entries(usersMap)
+              .map(([uid, uData]) => {
+                let weeklyLessons = 0;
+                let curr = pastThursday;
+                for (let i = 0; i < 7; i++) {
+                  weeklyLessons += (uData.history?.[curr]?.lessonsCompleted || 0);
+                  curr = addDays(curr, 1);
+                }
+                return {
+                  uid,
+                  displayName: uData.displayName || 'مستخدم غير معروف',
+                  weeklyLessons,
+                  avatarUrl: uData.avatarUrl || null
+                };
+              })
+              .filter(u => u.weeklyLessons > 0)
+              .sort((a, b) => b.weeklyLessons - a.weeklyLessons);
+              
+            if (pastEntries.length > 0) {
+              const weekNumber = existingReports.length + 1;
+              const newReport = {
+                id: pastWeekReportId,
+                dateStr: `${weekNumber}`,
+                entries: pastEntries,
+                timestamp: Date.now()
+              };
+              
+              await updateDoc(doc(db, 'users', supervisorId), {
+                weeklyReports: arrayUnion(newReport)
+              });
+              
+              // We don't need to update state here as the next useEffect will fetch it,
+              // but we can just let it fetch normally
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Auto close failed", e);
+      }
+    };
+    
+    autoClosePastWeeks();
+  }, [usersMap, supervisorId]);
+
   useEffect(() => {
     // Check if global leaderboard is enabled for users
     // We assume the supervisor toggles a field in their own doc, and we also need to push this to tracked users, or just use a global doc.
@@ -59,6 +125,7 @@ export function SupervisorReports({ usersMap, supervisorId }: SupervisorReportsP
   const reportTitle = activeReport ? `تقرير الأسبوع (${activeReport.dateStr})` : 'أبطال الأسبوع الحالي';
 
   // Auto-sync leaderboard if shown
+  const entriesJson = JSON.stringify(currentWeekEntries.slice(0, 10));
   useEffect(() => {
     if (showGlobal && supervisorId !== 'guest' && currentWeekEntries.length > 0) {
       const timeoutId = setTimeout(() => {
@@ -71,10 +138,10 @@ export function SupervisorReports({ usersMap, supervisorId }: SupervisorReportsP
         Object.keys(usersMap).forEach((uid) => {
           updateDoc(doc(db, 'users', uid), { leaderboardSettings: settings }).catch(console.error);
         });
-      }, 1000); // Debounce
+      }, 2000); // Debounce
       return () => clearTimeout(timeoutId);
     }
-  }, [currentWeekEntries, showGlobal, supervisorId, usersMap]);
+  }, [entriesJson, showGlobal, supervisorId]); // Depend on stringified entries, NOT usersMap
 
   const handleToggleGlobal = async () => {
     if (supervisorId === 'guest') {
@@ -111,7 +178,8 @@ export function SupervisorReports({ usersMap, supervisorId }: SupervisorReportsP
   
   const handleSaveWeeklyReport = async () => {
     if (currentWeekEntries.length === 0) return;
-    const dateStr = new Date().toISOString().split('T')[0];
+    const weekNumber = reports.length + 1;
+    const dateStr = `${weekNumber}`;
     const newReport = {
       id: `report-${Date.now()}`,
       dateStr,
@@ -170,14 +238,7 @@ export function SupervisorReports({ usersMap, supervisorId }: SupervisorReportsP
             {showGlobal ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
             {showGlobal ? 'مرئي للطلاب' : 'مخفي عن الطلاب'}
           </button>
-          {!selectedReportId && (
-            <button 
-              onClick={handleSaveWeeklyReport}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm flex items-center gap-2 transition-colors shadow-sm"
-            >
-              حفظ وإغلاق الأسبوع
-            </button>
-          )}
+
           
         </div>
       </div>

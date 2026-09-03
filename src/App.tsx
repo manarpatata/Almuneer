@@ -135,12 +135,16 @@ export default function App() {
       const timeoutId = setTimeout(() => {
         const stateToSave = {
           ...state,
-          email: user.email,
-          displayName: state.displayName || user.displayName || user.email?.split('@')[0]
+          email: user.email
         };
+        // Preserve displayName if it exists in state
+        if (state.displayName) {
+          stateToSave.displayName = state.displayName;
+        }
+        
         // Clean undefined values to prevent Firebase errors
         const cleanState = JSON.parse(JSON.stringify(stateToSave));
-        setDoc(doc(db, 'users', user.uid), cleanState).catch(e => console.error("Error saving to cloud:", e));
+        setDoc(doc(db, 'users', user.uid), cleanState, { merge: true }).catch(e => console.error("Error saving to cloud:", e));
       }, 500);
       return () => clearTimeout(timeoutId);
     }
@@ -977,34 +981,73 @@ export default function App() {
           
                     {(state.supervisorGifts || []).map((gift) => {
             const isOpened = gift.claimed;
-            return !isOpened ? (
-              <div key={gift.id} onClick={() => handleClaimSupervisorGift(gift.id)} className="relative w-full h-48 bg-fuchsia-500 rounded-xl overflow-hidden shadow-2xl cursor-pointer hover:scale-[1.03] active:scale-95 transition-all border-4 border-fuchsia-600 shrink-0">
-                <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-12 bg-pink-400 shadow-sm"></div>
-                <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-12 bg-pink-400 shadow-sm"></div>
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-pink-500 rotate-45 rounded-xl shadow-lg border-[3px] border-pink-400"></div>
-                
-                <div className="absolute bottom-2 right-2 bg-[#fdf8e6] px-2 py-1.5 rounded-lg shadow-xl border-2 border-fuchsia-300 rotate-[-8deg] z-10 w-[160px] pointer-events-none flex flex-col items-center">
-                  <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-[#fdf8e6] rounded-full border-2 border-fuchsia-300 flex items-center justify-center">
-                    <div className="w-1 h-1 bg-fuchsia-500 rounded-full"></div>
+            
+            if (gift.giftType === 'pardon') {
+              return !isOpened ? (
+                <div key={gift.id} onClick={() => handleClaimSupervisorGift(gift.id)} className="relative w-full h-48 bg-teal-500 rounded-xl overflow-hidden shadow-2xl cursor-pointer hover:scale-[1.03] active:scale-95 transition-all border-4 border-teal-600 shrink-0">
+                  <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-12 bg-amber-400 shadow-sm"></div>
+                  <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-12 bg-amber-400 shadow-sm"></div>
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-amber-500 rotate-45 rounded-xl shadow-lg border-[3px] border-amber-400"></div>
+                  
+                  <div className="absolute bottom-4 right-4 bg-teal-50 px-3 py-2 rounded-lg shadow-xl border-2 border-teal-300 rotate-[-8deg] z-10 w-[140px] pointer-events-none">
+                    <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-teal-50 rounded-full border-2 border-teal-300 flex items-center justify-center">
+                      <div className="w-1 h-1 bg-teal-600 rounded-full"></div>
+                    </div>
+                    <p className="text-sm font-black text-teal-900 mb-1.5 leading-tight text-center mt-1">{gift.message || 'هدية مميزة لك 🌟'}</p>
+                    <p className="text-[10px] text-teal-700 font-bold border-t border-teal-200 pt-1.5 text-center">من: {gift.from || 'المشرف'}</p>
                   </div>
-                  <p className="text-[10px] font-black text-fuchsia-900 mb-1 leading-tight text-center mt-1">"{gift.message}"</p>
-                  <p className="text-[9px] text-fuchsia-700 font-bold border-t border-fuchsia-200 pt-1 text-center w-full">من: {gift.from}</p>
+                </div>
+              ) : (
+                <div key={gift.id} className="bg-[#fdf3c8] border-[6px] border-[#e5a022] rounded-xl p-5 shadow-2xl relative flex flex-col items-center justify-center text-center transform -rotate-2 hover:rotate-0 transition-transform cursor-default h-48 overflow-hidden shrink-0">
+                  <div className="absolute inset-1 border-2 border-dashed border-[#e5a022] rounded-lg pointer-events-none"></div>
+                  <div className="w-12 h-12 bg-[#e5a022] text-white rounded-full flex items-center justify-center mb-3 shadow-inner z-10">
+                    <Shield className="w-6 h-6" />
+                  </div>
+                  <h3 className="font-black text-[#b37012] text-2xl uppercase tracking-widest mb-1 z-10">كرت الإعفاء</h3>
+                  <p className="text-[#8c5508] font-bold text-sm z-10 leading-relaxed max-w-[85%]">تعفيك من أي عقاب متى ما احتجتيه</p>
+                  
+                  <div className="absolute -bottom-2 right-2 w-24 h-24 rounded-full border-[5px] border-double border-red-700 flex flex-col items-center justify-center rotate-[-25deg] opacity-80 z-20">
+                    <Scale className="w-6 h-6 text-red-700 mb-0.5" strokeWidth={2.5} />
+                    <span className="text-[10px] font-black text-red-700 leading-tight text-center ">لجنة<br/>العقوبات</span>
+                  </div>
+                </div>
+              );
+            }
+            
+            // Points or Freeze
+            return !isOpened ? (
+              <div key={gift.id} onClick={() => handleClaimSupervisorGift(gift.id)} className="relative w-full h-48 bg-teal-500 rounded-xl overflow-hidden shadow-2xl cursor-pointer hover:scale-[1.03] active:scale-95 transition-all border-4 border-teal-600 shrink-0">
+                <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-12 bg-amber-400 shadow-sm"></div>
+                <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-12 bg-amber-400 shadow-sm"></div>
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-amber-500 rotate-45 rounded-xl shadow-lg border-[3px] border-amber-400"></div>
+                
+                <div className="absolute bottom-4 right-4 bg-teal-50 px-3 py-2 rounded-lg shadow-xl border-2 border-teal-300 rotate-[-8deg] z-10 w-[140px] pointer-events-none">
+                  <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-teal-50 rounded-full border-2 border-teal-300 flex items-center justify-center">
+                    <div className="w-1 h-1 bg-teal-600 rounded-full"></div>
+                  </div>
+                  <p className="text-sm font-black text-teal-900 mb-1.5 leading-tight text-center mt-1">{gift.message || 'هدية مميزة لك 🚀'}</p>
+                  <p className="text-[10px] text-teal-700 font-bold border-t border-teal-200 pt-1.5 text-center">من: {gift.from || 'المشرف'}</p>
                 </div>
               </div>
             ) : (
-              <div key={gift.id} className="bg-fuchsia-50 border-[6px] border-fuchsia-400 rounded-xl p-5 shadow-2xl relative flex flex-col items-center justify-center text-center transform -rotate-2 hover:rotate-0 transition-transform cursor-default h-48 overflow-hidden shrink-0">
-                <div className="absolute inset-1 border-2 border-dashed border-fuchsia-300 rounded-lg pointer-events-none"></div>
-                <div className="w-12 h-12 bg-fuchsia-500 text-white rounded-full flex items-center justify-center mb-3 shadow-inner z-10">
-                  {gift.giftType === 'freeze' ? <Snowflake className="w-6 h-6" /> :
-                   gift.giftType === 'pardon' ? <Shield className="w-6 h-6" /> :
-                   <Star className="w-6 h-6 fill-current" />}
+              <div key={gift.id} className="bg-indigo-50 border-[6px] border-indigo-400 rounded-xl p-5 shadow-2xl relative flex flex-col items-center justify-center text-center transform -rotate-2 hover:rotate-0 transition-transform cursor-default h-48 overflow-hidden shrink-0">
+                <div className="absolute inset-1 border-2 border-dashed border-indigo-300 rounded-lg pointer-events-none"></div>
+                <div className="w-12 h-12 bg-indigo-500 text-white rounded-full flex items-center justify-center mb-3 shadow-inner z-10">
+                  {gift.giftType === 'points' ? <Star className="w-6 h-6 fill-current" /> : <Snowflake className="w-6 h-6" />}
                 </div>
-                <h3 className="font-black text-fuchsia-800 text-xl uppercase tracking-widest mb-1 z-10">
-                  {gift.giftType === 'freeze' ? 'استعادة ستريك' :
-                   gift.giftType === 'pardon' ? 'كرت الإعفاء' :
-                   '300 نقطة'}
+                <h3 className="font-black text-indigo-800 text-xl uppercase tracking-widest mb-1 z-10">
+                  {gift.giftType === 'points' ? 'ربحت 300 نقطة!' : 'استعادة ستريك'}
                 </h3>
-                <p className="text-xs text-fuchsia-600 font-bold z-10 mt-1">من: {gift.from}</p>
+                {gift.giftType !== 'points' && (
+                  <p className="text-indigo-600 font-bold text-sm z-10 leading-relaxed max-w-[85%]">
+                    كرت استعادة أيام الانقطاع
+                  </p>
+                )}
+                
+                <div className="absolute -bottom-2 right-2 w-24 h-24 rounded-full border-[5px] border-double border-indigo-600 flex flex-col items-center justify-center rotate-[-25deg] opacity-80 z-20">
+                  <div className="w-6 h-6 text-indigo-600 mb-0.5 flex items-center justify-center font-bold text-xl"><Search className="w-5 h-5 text-indigo-600" strokeWidth={2.5} /></div>
+                  <span className="text-[10px] font-black text-indigo-600 leading-tight text-center ">لجنة<br/>المتابعة</span>
+                </div>
               </div>
             );
           })}
@@ -1295,16 +1338,6 @@ export default function App() {
         )}
       </main>
 
-      <footer className="px-4 md:px-8 py-3 bg-slate-900 text-white/50 text-xs flex justify-between items-center shrink-0">
-        <span>جميع البيانات محفوظة محلياً على جهازك</span>
-        <div className="flex gap-4">
-          <span>الإصدار ١.٠</span>
-          <span className="text-emerald-400 font-bold flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-            متصل
-          </span>
-        </div>
-      </footer>
 
       
       {/* View Completed Quiz Modal */}
@@ -1640,7 +1673,6 @@ export default function App() {
                 <div>
                   <h3 className="font-bold text-base mb-1">منطقة التهديد</h3>
                   <p>إذا لم تنجزي الحد الأدنى في يوم ما، ستكونين مهددة بالعقاب في اليوم التالي.</p>
-                  <p className="mt-1 text-blue-600 font-bold">🔫 التفتيق: إذا لم تتم أي درس في يوم ما (صفر درس) ستعاقب!</p>
                 </div>
               </div>
               
@@ -1666,7 +1698,35 @@ export default function App() {
                   <h3 className="font-bold text-base mb-1 text-indigo-700">الستريك</h3>
                   <ul className="list-disc pr-4 space-y-1 mt-1">
                     <li><strong>نظام الستريك 🔥:</strong> يتم حساب عدد الأيام المتتالية التي أنهيت فيها درساً واحداً على الأقل. انقطاع يوم يعيدك للصفر!</li>
+                    <li><strong>كرت التجميد 🧊:</strong> يمكنك استخدام كرت استعادة الستريك (مكعب الجليد) من المحفظة لحفظ الستريك الخاص بك في حال انقطعت ليوم واحد.</li>
                   </ul>
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center font-bold shrink-0">٦</div>
+                <div>
+                  <h3 className="font-bold text-base mb-1 text-amber-700">نظام النقاط</h3>
+                  <div className="space-y-3 mt-2">
+                    <div>
+                      <strong className="text-emerald-700 block mb-1">كسب النقاط 📈:</strong>
+                      <ul className="list-disc pr-5 space-y-1 text-sm text-slate-600">
+                        <li>إتمام الهدف اليومي: <span className="text-emerald-600 font-bold">+١٠ نقاط</span></li>
+                        <li>إتمام ٢٠ درساً أو أكثر: <span className="text-emerald-600 font-bold">+٥٠ نقطة</span></li>
+                        <li>إتمام ختمة كاملة: <span className="text-emerald-600 font-bold">+١٠٠ نقطة</span></li>
+                        <li>هدايا المتابعة والمشرف: <span className="text-emerald-600 font-bold">+٣٠٠ نقطة</span></li>
+                      </ul>
+                    </div>
+                    <div>
+                      <strong className="text-rose-700 block mb-1">خصم النقاط 📉:</strong>
+                      <ul className="list-disc pr-5 space-y-1 text-sm text-slate-600">
+                        <li>عدم إكمال الهدف اليومي: <span className="text-rose-600 font-bold">-١٠ نقاط</span></li>
+                        <li>الوقوع في عقاب: <span className="text-rose-600 font-bold">-٥٠ نقطة</span></li>
+                        <li>تجاهل العقاب / الطرد: <span className="text-rose-600 font-bold">-١٠٠ نقطة</span></li>
+                      </ul>
+                    </div>
+                    <p className="pt-2 text-slate-700 font-bold">💡 يمكنك استبدال النقاط في <strong>المتجر 🛒</strong> للحصول على كروت إعفاء وتجميد.</p>
+                  </div>
                 </div>
               </div>
             </div>
