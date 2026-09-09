@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import SignatureCanvas from 'react-signature-canvas';
-import { doc, getDoc, updateDoc, onSnapshot, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, onSnapshot, arrayUnion, arrayRemove, increment } from 'firebase/firestore';
 import { db } from '../firebase';
 import { AppState, SupervisorGift } from '../types';
 import { Users, Search, Gift, Skull, ShieldBan, X, AlertTriangle, ShieldCheck, ArrowRight, UserPlus, Trash2, FileText, CheckCircle2, Circle, Plus, ChevronDown, ChevronUp, Pencil } from 'lucide-react';
@@ -201,7 +201,8 @@ export function SupervisorDashboard({ onClose, supervisorId, trackedUsers = [], 
           sender: punishSender || 'المشرف',
           signature: punishSignature,
           timestamp: Date.now()
-        })
+        }),
+        points: increment(-50)
       });
       
       setShowPunishModal(false);

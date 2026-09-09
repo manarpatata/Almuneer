@@ -344,33 +344,36 @@ export default function App() {
 
   const currentScore = useMemo(() => {
     let score = state.khatmatCount * 100;
-    Object.values(state.history).forEach((day: any) => {
+    Object.keys(state.history).forEach((dateStr) => {
+      const day = state.history[dateStr] as any;
       const failed = day.failedPunishments || (day.expelled ? 1 : 0);
       score -= failed * 100;
       
-      if (day.punished2Days || day.punishedDaily) {
-        score -= 50;
-      }
-      
-      if (day.lessonsCompleted < dailyGoal) {
-        score -= 10;
-      }
-
-      if (day.lessonsCompleted >= 20 && day.lessonsCompleted < 28) {
-        score += 50;
-      } else if (day.lessonsCompleted >= dailyGoal && day.lessonsCompleted < 20) {
-        score += 10;
+      const isFinished = dateStr < getTodayDateString();
+      if (isFinished) {
+        if (day.punished2Days) {
+          score -= 50;
+        }
+        
+        if (day.lessonsCompleted < dailyGoal) {
+          score -= 10;
+        }
+        if (day.lessonsCompleted >= 20 && day.lessonsCompleted < 28) {
+          score += 50;
+        } else if (day.lessonsCompleted >= dailyGoal && day.lessonsCompleted < 20) {
+          score += 10;
+        }
       }
     });
-    return Math.max(0, score);
-  }, [state.history, dailyGoal, state.khatmatCount]);
+    return Math.max(0, score) + (state.points || 0);
+  }, [state.history, dailyGoal, state.khatmatCount, state.points]);
 
   const todayCompleted = state.history[getTodayDateString()]?.lessonsCompleted || 0;
   const yesterdayDate = addDays(getTodayDateString(), -1);
   const yesterdayCompleted = state.history[yesterdayDate]?.lessonsCompleted || 0;
   const isYesterdayBeforeStart = yesterdayDate < (state.startDate || state.lastLoginDate);
-  const gotPunished2DaysToday = yesterdayCompleted === 0 && state.history[yesterdayDate]?.punished2Days;
-  const gotSplashedToday = yesterdayCompleted === 0 && state.history[yesterdayDate]?.punishedDaily && !gotPunished2DaysToday;
+  const gotPunished2DaysToday = state.history[yesterdayDate]?.punished2Days;
+  const gotSplashedToday = yesterdayCompleted === 0 && !isYesterdayBeforeStart;
   
   let currentBoxType = 'default';
   if (state.pendingPunishment) currentBoxType = 'punishment';
@@ -796,8 +799,6 @@ export default function App() {
   
   const mainBgClasses = isExpelled 
     ? "bg-gradient-to-br from-red-50 to-red-100/80 text-red-950" 
-    : gotPunished2DaysToday
-    ? "bg-gradient-to-br from-red-50 to-rose-100/80 text-red-900 relative"
     : gotSplashedToday
     ? "bg-gradient-to-br from-blue-50 to-cyan-100/80 text-blue-900 relative"
     : "bg-gradient-to-br from-slate-50 to-slate-100/80 text-slate-800";
@@ -865,7 +866,7 @@ export default function App() {
                   className="flex items-center justify-center gap-1.5 bg-yellow-50 hover:bg-yellow-100 transition-colors px-2.5 py-0.5 md:px-3 md:py-1 rounded-lg border border-yellow-200 text-yellow-700 shadow-sm"
                 >
                   <Trophy className="w-3.5 h-3.5 md:w-4 md:h-4 text-yellow-500" />
-                  <span className="font-black font-mono text-[11px] md:text-sm pt-0.5">{currentScore + (state.points || 0)}</span>
+                  <span className="font-black font-mono text-[11px] md:text-sm pt-0.5">{currentScore}</span>
                 </button>
                 
                 <button
@@ -1647,7 +1648,7 @@ export default function App() {
       {showStoreModal && (
         <StoreModal
           user={user}
-          points={currentScore + (state.points || 0)}
+          points={currentScore}
           onClose={() => setShowStoreModal(false)}
           showToast={(msg) => { setToastMessage(msg); setTimeout(() => setToastMessage(''), 3000); }}
         />

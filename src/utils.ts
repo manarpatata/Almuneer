@@ -111,23 +111,28 @@ export function calculateStreak(history: Record<string, any>, startDate: string,
 export function calculateTotalScore(state: AppState) {
   let score = (state.khatmatCount || 0) * 100;
   const dailyGoal = state.dailyGoal || 10;
+  const today = getTodayDateString();
   
   if (state.history) {
-    Object.values(state.history).forEach((day: any) => {
-      const failed = (day.failedPunishments ? 1 : 0) + (day.expelled ? 1 : 0);
+    Object.keys(state.history).forEach((dateStr) => {
+      const day = state.history[dateStr] as any;
+      const failed = day.failedPunishments || (day.expelled ? 1 : 0);
       score -= failed * 100;
       
-      if (day.punished2Days || day.punishedDaily) {
-        score -= 50;
-      }
-      
-      if (day.lessonsCompleted < dailyGoal) {
-        score -= 10;
-      }
-      if (day.lessonsCompleted >= 20 && day.lessonsCompleted < 28) {
-        score += 50;
-      } else if (day.lessonsCompleted >= dailyGoal && day.lessonsCompleted < 20) {
-        score += 10;
+      const isFinished = dateStr < today;
+      if (isFinished) {
+        if (day.punished2Days) {
+          score -= 50;
+        }
+        
+        if (day.lessonsCompleted < dailyGoal) {
+          score -= 10;
+        }
+        if (day.lessonsCompleted >= 20 && day.lessonsCompleted < 28) {
+          score += 50;
+        } else if (day.lessonsCompleted >= dailyGoal && day.lessonsCompleted < 20) {
+          score += 10;
+        }
       }
     });
   }
